@@ -293,7 +293,7 @@ export const createAccount = asyncHandler(async (req, res, next) => {
   }
   const hashPassword = hash({ plaintext: password });
   const encryptedPhone = encrypt({ plainText: phone });
-  const newUser = newUser = await create({
+  const newUser = await create({
     model: userModel,
     data: {
       userName,
@@ -307,7 +307,7 @@ export const createAccount = asyncHandler(async (req, res, next) => {
       createdBy: user._id,
     },
   });
-  return res.status(201).json({ message: "Done", userId: superAdmin._id });
+  return res.status(201).json({ message: "Done", userId: newUser._id });
 });
 export const confirmEmail = asyncHandler(async (req, res, next) => {
   const { token } = req.params;

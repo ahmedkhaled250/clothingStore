@@ -278,7 +278,7 @@ export const blockUser = asyncHandler(async (req, res, next) => {
 });
 export const profile = asyncHandler(async (req, res, next) => {
   const { user } = req;
-  if (user.phone) user.phone = decrypt({ encryptedPhone: user.phone });
+  if (user.phone) user.phone = decrypt({ encryptedText: user.phone });
   return res.status(200).json({ message: "Done", user });
 });
 export const getUserById = asyncHandler(async (req, res, next) => {
@@ -291,7 +291,7 @@ export const getUserById = asyncHandler(async (req, res, next) => {
   if (!user) {
     return next(new Error("In-valid user", { cause: 404 }));
   }
-  if (user.phone) user.phone = decrypt({ encryptedPhone: user.phone });
+  if (user.phone) user.phone = decrypt({ encryptedText: user.phone });
   return res.status(200).json({ message: "Done", user });
 });
 export const users = asyncHandler(async (req, res, next) => {
@@ -304,7 +304,7 @@ export const users = asyncHandler(async (req, res, next) => {
   }
   const finalUsers = [];
   for (const user of users) {
-    if (user.phone) user.phone = decrypt({ encryptedPhone: user.phone });
+    if (user.phone) user.phone = decrypt({ encryptedText: user.phone });
     finalUsers.push(user);
   }
   return res.status(200).json({ message: "Done", users });

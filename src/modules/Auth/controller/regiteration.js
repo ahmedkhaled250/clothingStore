@@ -13,6 +13,7 @@ import {
   verifyToken,
 } from "../../../utils/GenerateAndVerifyToken.js";
 import { compare, hash } from "../../../utils/HashAndCompare.js";
+import { encrypt } from "../../../utils/encryptAndDecrypt.js";
 export const signup = asyncHandler(async (req, res, next) => {
   const { userName, password, phone, gender, address, role, DOB } = req.body;
   const email = req.body.email.toLowerCase();
@@ -291,39 +292,21 @@ export const createAccount = asyncHandler(async (req, res, next) => {
     return next(new Error("Email rejected", { cause: 400 }));
   }
   const hashPassword = hash({ plaintext: password });
-  const encryptedPhone = encrypt({ phone });
-  let newUser;
-  if (role == "SuperAdmin") {
-    newUser = await create({
-      model: userModel,
-      data: {
-        userName,
-        email,
-        password: hashPassword,
-        phone: encryptedPhone,
-        gender,
-        address,
-        DOB,
-        role: "SuperAdmin",
-        createdBy: user._id,
-      },
-    });
-  } else {
-    newUser = await create({
-      model: userModel,
-      data: {
-        userName,
-        email,
-        password: hashPassword,
-        phone: encryptedPhone,
-        gender,
-        address,
-        DOB,
-        role: "Admin",
-        createdBy: user._id,
-      },
-    });
-  }
+  const encryptedPhone = encrypt({ plainText: phone });
+  const newUser = newUser = await create({
+    model: userModel,
+    data: {
+      userName,
+      email,
+      password: hashPassword,
+      phone: encryptedPhone,
+      gender,
+      address,
+      DOB,
+      role,
+      createdBy: user._id,
+    },
+  });
   return res.status(201).json({ message: "Done", userId: superAdmin._id });
 });
 export const confirmEmail = asyncHandler(async (req, res, next) => {

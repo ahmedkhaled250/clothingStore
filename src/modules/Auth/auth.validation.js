@@ -37,7 +37,7 @@ export const createAccount = joi
     gender: joi.string().allow("Male", "Female"),
     address: joi.string(),
     DOB: joi.date(),
-    role: joi.string().allow("Admin", "SuperAdmin"),
+    role: joi.string().allow("Admin", "SuperAdmin").required(),
     authorization: generalFields.headers,
   })
   .required();

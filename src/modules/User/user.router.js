@@ -6,17 +6,11 @@ import endPoint from "./user.endPoints.js";
 import { fileValidation, myMulter } from "../../utils/multer.js";
 import validation from "../../middleware/validation.js";
 const router = Router();
-router.patch(
-  "/:id/acceptAdmin",
-  validation(validators.superAdminAccessInUser),
-  auth(endPoint.SuperAdmin),
-  userController.acceptAdmin
-);
-router.patch(
-  "/:id/refuseAdmin",
-  validation(validators.superAdminAccessInUser),
-  auth(endPoint.SuperAdmin),
-  userController.refuseAdmin
+router.put(
+  "/",
+  validation(validators.updateUser),
+  auth(endPoint.allUsers),
+  userController.updateUser
 );
 router.patch(
   "/profilePic",

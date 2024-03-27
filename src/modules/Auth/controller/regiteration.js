@@ -12,13 +12,13 @@ import {
   generateToken,
   verifyToken,
 } from "../../../utils/GenerateAndVerifyToken.js";
-import { compare, encrypt, hash } from "../../../utils/HashAndCompare.js";
+import { compare, hash } from "../../../utils/HashAndCompare.js";
 export const signup = asyncHandler(async (req, res, next) => {
   const { userName, password, phone, gender, address, role, DOB } = req.body;
   const email = req.body.email.toLowerCase();
-  if (role == "SuperAdmin") {
+  if (role == "SuperAdmin" | role == "Admin") {
     return next(
-      new Error("You cannot add yourself as SuperAdmin", { cause: 400 })
+      new Error("You cannot add yourself", { cause: 400 })
     );
   }
   const user = await findOne({
@@ -39,7 +39,6 @@ export const signup = asyncHandler(async (req, res, next) => {
     signature: process.env.EMAILTOKEN,
     expiresIn: 60 * 60 * 24,
   });
-
   const link = `${req.protocol}://${req.headers.host}/auth/confirmEmail/${token}`;
   const rfLink = `${req.protocol}://${req.headers.host}/auth/refreshEmail/${refreshToken}`;
 
@@ -150,55 +149,34 @@ export const signup = asyncHandler(async (req, res, next) => {
   }
   const hashPassword = hash({ plaintext: password });
   const encryptedPhone = encrypt({ phone });
-  let newUser;
-  if (role == "Admin") {
-    newUser = await create({
-      model: userModel,
-      data: {
-        userName,
-        email,
-        password: hashPassword,
-        phone: encryptedPhone,
-        address,
-        role,
-        gender,
-        DOB,
-        acceptedMail: false,
-      },
-    });
-    await updateMany({
-      model: userModel,
-      condition: { role: "SuperAdmin" },
-      data: { $push: { accountRequested: newUser._id } },
-    });
-  } else {
-    newUser = await create({
-      model: userModel,
-      data: {
-        userName,
-        email,
-        password: hashPassword,
-        phone: encryptedPhone,
-        address,
-        gender,
-        DOB,
-      },
-    });
-  }
+  const newUser = await create({
+    model: userModel,
+    data: {
+      userName,
+      email,
+      password: hashPassword,
+      phone: encryptedPhone,
+      address,
+      gender,
+      DOB,
+    },
+  });
   return res.status(201).json({ message: "Done", userId: newUser._id });
 });
-export const createSuperAdmin = asyncHandler(async (req, res, next) => {
+export const createAccount = asyncHandler(async (req, res, next) => {
   const { user } = req;
+  const { userName, phone, gender, address, DOB, role } = req.body;
+  const email = req.body.email.toLowerCase();
   if (user.deleted) {
     return next(new Error("You deleted your profile", { cause: 400 }));
   }
-  if (user.createdBy) {
-    return next(
-      new Error("You cannot add any account for anyone", { cause: 403 })
-    );
+  if (role == "SuperAdmin") {
+    if (user.createdBy && role == "SuperAdmin") {
+      return next(
+        new Error("You cannot add any account for SuperAdmins", { cause: 403 })
+      );
+    }
   }
-  const { userName, phone, gender, address, DOB } = req.body;
-  const email = req.body.email.toLowerCase();
   const checkEmail = await findOne({ model: userModel, condition: { email } });
   if (checkEmail) {
     return next(new Error("Email exist", { cause: 409 }));
@@ -314,20 +292,38 @@ export const createSuperAdmin = asyncHandler(async (req, res, next) => {
   }
   const hashPassword = hash({ plaintext: password });
   const encryptedPhone = encrypt({ phone });
-  const superAdmin = await create({
-    model: userModel,
-    data: {
-      userName,
-      email,
-      password: hashPassword,
-      phone: encryptedPhone,
-      gender,
-      address,
-      DOB,
-      role: "SuperAdmin",
-      createdBy: user._id,
-    },
-  });
+  let newUser;
+  if (role == "SuperAdmin") {
+    newUser = await create({
+      model: userModel,
+      data: {
+        userName,
+        email,
+        password: hashPassword,
+        phone: encryptedPhone,
+        gender,
+        address,
+        DOB,
+        role: "SuperAdmin",
+        createdBy: user._id,
+      },
+    });
+  } else {
+    newUser = await create({
+      model: userModel,
+      data: {
+        userName,
+        email,
+        password: hashPassword,
+        phone: encryptedPhone,
+        gender,
+        address,
+        DOB,
+        role: "Admin",
+        createdBy: user._id,
+      },
+    });
+  }
   return res.status(201).json({ message: "Done", userId: superAdmin._id });
 });
 export const confirmEmail = asyncHandler(async (req, res, next) => {
@@ -484,11 +480,6 @@ export const signin = asyncHandler(async (req, res, next) => {
   if (!user.confirmEmail) {
     return next(new Error("Confirm your email first", { cause: 400 }));
   }
-  if (user.role == "Admin") {
-    if (!user.acceptedMail) {
-      return next(new Error("Your Email is not accepted", { cause: 400 }));
-    }
-  }
   if (user.status == "blocked") {
     return next(new Error("your account is blocked", { cause: 400 }));
   }
@@ -502,11 +493,33 @@ export const signin = asyncHandler(async (req, res, next) => {
   });
   const refresh_token = generateToken({
     payload: { id: user._id },
-    expiresIn: 60 * 60 * 24 * 365,
+    expiresIn: 60 * 60 * 24 * 30,
   });
   user.status = "online";
   await user.save();
-  return res.status(200).json({ message: "Done", token, refresh_token });
+  return res.status(200).json({ message: "Done", token, refresh_token, userId: user._id, role: user.role });
+});
+export const refreshToken = asyncHandler(async (req, res, next) => {
+  const { token } = req.params;
+  const decoded = verifyToken({ token, signature: process.env.TOKINSEGNITURE });
+  if (!decoded?.id) {
+    return next(new Error("Invalid token payload", { cause: 400 }));
+  }
+  const user = await findOne({
+    model: userModel,
+    condition: { id: decoded.id },
+  });
+  if (user.status == "blocked") {
+    return next(new Error("This account is blocked", { cause: 400 }));
+  }
+  const newToken = generateToken({
+    payload: { id: user._id },
+    expiresIn: 60 * 60 * 24,
+  });
+  if (!info) {
+    return next(new Error("Email rejected", { cause: 400 }));
+  }
+  return res.status(200).json({ message: "Done", token: newToken, refreshToken: token, userId: user._id, role: user.role });
 });
 export const sendCode = asyncHandler(async (req, res, next) => {
   const email = req.body.email.toLowerCase();

@@ -1,6 +1,6 @@
 import { roles } from "../../middleware/auth.js";
 
 const endPoint = {
-  createAccount: [roles.SuperAdmin],
-};
-export default endPoint;
+    SuperAdmin:[roles.SuperAdmin]
+}
+export default endPoint

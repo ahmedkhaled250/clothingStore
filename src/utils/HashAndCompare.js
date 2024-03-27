@@ -10,8 +10,3 @@ export const compare = ({ plaintext, hashValue } = {}) => {
   const match = bcrypt.compareSync(plaintext, hashValue);
   return match;
 };
-
-export const encrypt = ({ phone, key = process.env.ENCRYPTION_KEY } = {}) => {
-  const encryptedPhone = CryptoJS.AES.encrypt(phone, key).toString();
-  return encryptedPhone
-};

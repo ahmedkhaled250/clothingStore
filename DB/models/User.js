@@ -35,7 +35,7 @@ const userSchema = new Schema(
       default: "normal",
     },
     socialId: String,
-    gender: String,
+    gender: { type: String ,default:"Male",enum:["Male","Female"]},
     DOB: Date,
     status: {
       type: String,
@@ -55,9 +55,6 @@ const userSchema = new Schema(
       default: null,
     },
     changeTime: Date,
-    accountRequested:[{ type: Types.ObjectId, ref: "User" }],
-    accountBlocked: [{ type: Types.ObjectId, ref: "User" }],
-    acceptedMail: Boolean,
     createdBy: { type: Types.ObjectId, ref: "User" },
     image: {
       type: { secure_url: String, public_id: String },

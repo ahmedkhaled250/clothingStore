@@ -5,10 +5,10 @@ import endPoint from "./category.endPoint.js";
 import * as validators from "./category.validation.js";
 import * as categoryController from "./controller/category.js";
 import { Router } from "express";
-// import subCategoryRouter from "../SubCategory/subcategory.router.js";
+import subCategoryRouter from "../SubCategory/subcategory.router.js";
 // import productRouter from "../Product/product.router.js";
 const router = Router();
-// router.use("/:categoryId/subcategory", subCategoryRouter);
+router.use("/:categoryId/subcategory", subCategoryRouter);
 // router.use("/:categoryId/product", productRouter);
 router.post(
   "/",

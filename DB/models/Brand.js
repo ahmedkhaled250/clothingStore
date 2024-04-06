@@ -1,12 +1,12 @@
 import { Schema, Types, model } from "mongoose";
 
-const categorySchema = new Schema(
+const brandSchema = new Schema(
   {
     name: {
       type: String,
       required: [true, "userName is required"],
       min: [2, "minimum length 2 char"],
-      max: [50, "max length 2 char"],
+      max: [20, "max length 2 char"],
       unique: [true, "name must be unique value"],
       lowercase: true,
     },
@@ -18,7 +18,7 @@ const categorySchema = new Schema(
     createdBy: {
       type: Types.ObjectId,
       ref: "User",
-      required: [true, "Owner is required"],
+      required: [true, "Oner is required"],
     },
     updatedBy: {
       type: Types.ObjectId,
@@ -28,14 +28,7 @@ const categorySchema = new Schema(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
   }
 );
-categorySchema.virtual("subcategory", {
-  ref: "Subcategory",
-  localField: "_id",
-  foreignField: "categoryId",
-});
-const categoryModel = model("Category", categorySchema);
-export default categoryModel;
+const brandModel = model("Brand", brandSchema);
+export default brandModel;

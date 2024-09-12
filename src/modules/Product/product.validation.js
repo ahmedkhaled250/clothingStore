@@ -16,16 +16,7 @@ export const createProduct = joi
     stock: joi.number().required(),
     price: joi.number().min(1).required(),
     discound: joi.number().min(0).max(100),
-    file: joi
-      .object({
-        mainImage: joi
-          .array()
-          .items(generalFields.file.required())
-          .length(1)
-          .required(),
-        subImages: joi.array().items(generalFields.file).max(5).min(1),
-      })
-      .required(),
+    file: joi.array().items(generalFields.file).max(5).min(1).required(),
     categoryId: generalFields.id,
     subcategoryId: generalFields.id,
     brandId: generalFields.id,
@@ -48,10 +39,7 @@ export const updateProduct = joi
     colors: joi.array(),
     size: joi.array(),
     imageId: joi.string(),
-    file: joi.object({
-      mainImage: joi.array().items(generalFields.file).max(1),
-      subImages: joi.array().items(generalFields.file).max(5).min(1),
-    }),
+    file: joi.array().items(generalFields.file).max(5),
     categoryId: generalFields.optionalId,
     subCategoryId: generalFields.optionalId,
     brandId: generalFields.optionalId,
@@ -64,16 +52,14 @@ export const IdAndHeaders = joi
     authorization: generalFields.headers,
   })
   .required();
-export const Headers = joi
-  .object({
-    authorization: joi.string().required(),
-  })
-  .required();
+// export const Headers = joi
+//   .object({
+//     authorization: joi.string().required(),
+//   })
+//   .required();
 export const products = joi
   .object({
     ...validateQuery,
-    authorization: joi.string(),
-
   })
   .required();
 export const myProducts = joi
@@ -85,7 +71,6 @@ export const myProducts = joi
 export const getProductById = joi
   .object({
     id: generalFields.id,
-    authorization: joi.string(),
   })
   .required();
 export const productsOfSpecificSubcategory = joi

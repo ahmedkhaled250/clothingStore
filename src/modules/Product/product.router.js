@@ -14,20 +14,14 @@ router.use("/:productId/review", reviewRouter);
 router.use("/:productId/wishList", wishList);
 router.post(
   "/",
-  myMulter(fileValidation.image).fields([
-    { name: "mainImage", maxCount: 1 },
-    { name: "subImages", maxCount: 5 },
-  ]),
+  myMulter(fileValidation.image).array("images", 5),
   validation(validators.createProduct),
   auth(endPoint.product),
   productController.createProduct
 );
 router.put(
   "/:id",
-  myMulter(fileValidation.image).fields([
-    { name: "mainImage", maxCount: 1 },
-    { name: "subImages", maxCount: 5 },
-  ]),
+  myMulter(fileValidation.image).array("images", 5),
   validation(validators.updateProduct),
   auth(endPoint.product),
   productController.updateProduct

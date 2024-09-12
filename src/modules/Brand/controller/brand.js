@@ -56,7 +56,7 @@ export const updateBrand = asyncHandler(async (req, res, next) => {
   }
   const brand = await findOne({
     model: brandModel,
-    condition: { _id: id, createdBy: user._id },
+    condition: { _id: id},
     select: "name cloudId image",
   });
   if (!brand) {
@@ -79,7 +79,6 @@ export const updateBrand = asyncHandler(async (req, res, next) => {
     if (checkName) {
       return next(new Error("Dupplicate name", { cause: 409 }));
     }
-    req.body.name = name.toLowerCase();
     req.body.slug = slugify(req.body.name, {
       replacement: "-",
       lower: true,
@@ -98,7 +97,7 @@ export const updateBrand = asyncHandler(async (req, res, next) => {
   req.body.updatedBy = user._id
   const updateBrand = await findOneAndUpdate({
     model: brandModel,
-    condition: { _id: id, createdBy: user._id },
+    condition: { _id: id},
     data: req.body,
   });
   if (!updateBrand) {
@@ -130,7 +129,7 @@ export const brands = asyncHandler(async (req, res, next) => {
     .paginate();
   const brands = await apiFeature.mongooseQuery;
   if (!brands.length) {
-    return next(new Error("In-valid brand", { cause: 404 }));
+    return next(new Error("In-valid brands", { cause: 404 }));
   }
   return res.status(200).json({ message: "Done", brands });
 });

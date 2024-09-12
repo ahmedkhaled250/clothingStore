@@ -2,6 +2,8 @@ import authRouter from "./Auth/auth.router.js";
 import userRouter from "./User/user.router.js";
 import categoryRouter from "./Category/category.router.js";
 import subcategoryRouter from "./SubCategory/subcategory.router.js";
+import brandRouter from "./Brand/brand.router.js";
+import productRouter from "./Product/product.router.js";
 import morgan from "morgan";
 import { globalError } from "../utils/errorHandling.js";
 import cors from "cors";
@@ -29,6 +31,8 @@ const bootstrap = (app, express) => {
   app.use(`/user`, userRouter);
   app.use(`/category`, categoryRouter);
   app.use(`/subcategory`, subcategoryRouter);
+  app.use(`/brand`, brandRouter);
+  app.use(`/product`, productRouter);
   app.use("*", (req, res) => {
     res.status(404).json({ message: "In-valid routing" });
   });

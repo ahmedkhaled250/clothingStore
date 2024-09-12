@@ -12,23 +12,29 @@ const productSchema = new Schema(
     },
     slug: String,
     description: String,
-    colors: {
-      type: [{
-        color: String,
-        subImages: { type: [{ secure_url: String, public_id: String }] },
-        stock,
-        TOTALaMOUNT,
-        soldItems
-      }],
-      required: true
-    },
+    images: { type: [{ secure_url: String, public_id: String }] },
+    // colors: {
+    //   type: [{
+    //     color: String,
+    //     subImages: { type: [{ secure_url: String, public_id: String }] },
+    //     stock,
+    //     TOTALaMOUNT,
+    //     soldItems
+    //   }],
+    //   required: true
+    // },
+    colors: [String],
     size: {
       type: [String],
       enum: ["ss", "s", "m", "l", "xl", "xxl", ""],
     },
-    totalStock: {
+    stock: {
       type: Number,
       default: 0,
+    },
+    totalAmount: {
+      type: Number,
+      default: 0
     },
     price: {
       type: Number,
@@ -42,7 +48,7 @@ const productSchema = new Schema(
       type: Number,
       default: 1,
     },
-    totalSoldItems: {
+    soldItems: {
       type: Number,
       default: 0,
     },
@@ -80,14 +86,14 @@ const productSchema = new Schema(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    // toJSON: { virtuals: true },
+    // toObject: { virtuals: true },
   }
 );
-productSchema.virtual("review", {
-  ref: "Review",
-  localField: "_id",
-  foreignField: "productId",
-});
+// productSchema.virtual("review", {
+//   ref: "Review",
+//   localField: "_id",
+//   foreignField: "productId",
+// });
 const productModel = model("Product", productSchema);
 export default productModel;

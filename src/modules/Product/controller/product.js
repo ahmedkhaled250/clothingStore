@@ -40,6 +40,7 @@ export const createProduct = asyncHandler(async (req, res, next) => {
     return next(new Error("In-valid brandId", { cause: 404 }));
   }
   req.body.categoryId = categoryId;
+  req.body.totalAmount = req.body.stock;
   req.body.subcategoryId = subcategoryId;
   req.body.brandId = brandId;
   req.body.createdBy = user._id;
@@ -53,34 +54,22 @@ export const createProduct = asyncHandler(async (req, res, next) => {
     price - price * ((discound || 0) / 100)
   ).toFixed(2);
   req.body.cloudId = nanoid();
-  const { secure_url, public_id } = await cloudinary.uploader.upload(
-    req.files.mainImage[0].path,
-    {
-      folder: `${process.env.PROJECTNAME}/product/${req.body.cloudId}`,
-    }
-  );
-  req.body.mainImage = { secure_url, public_id };
-  const subImages = [];
-  if (req.files.subImages) {
-    for (const file of req.files.subImages) {
+  const images = [];
+    for (const file of req.files.images) {
       const { secure_url, public_id } = await cloudinary.uploader.upload(
         file.path,
         {
-          folder: `${process.env.PROJECTNAME}/product/${req.body.cloudId}/subImages`,
+          folder: `${process.env.PROJECTNAME}/product/${req.body.cloudId}/images`,
         }
       );
-      subImages.push({ secure_url, public_id });
+      images.push({ secure_url, public_id });
     }
-    req.body.subImages = subImages;
-  }
+    req.body.images = images;
   const product = await create({ model: productModel, data: req.body });
   if (!product) {
-    await cloudinary.uploader.destroy(public_id);
-    if (req.files.subImages) {
-      for (const image of req.body.subImages) {
+      for (const image of req.body.images) {
         await cloudinary.uploader.destroy(image.public_id);
       }
-    }
     return next(new Error("Fail to create a new product", { cause: 400 }));
   }
   return res.status(201).json({ message: "Done", product });
@@ -92,7 +81,7 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
     price,
     discound,
     stock,
-    replacSubImages,
+    replacImages,
     imageId,
     categoryId,
     subcategoryId,
@@ -135,7 +124,7 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
             There was a product you tried to buy it but there wasn't the quantity that you wanted <br>
             There are some products of this product have added into the stock <br>
             The product name is ${product.name}, <br>
-            The product image is ${product.mainImage.secure_url} <br>
+            The product image is ${product.images[0].secure_url} <br>
             <a href="${link}">Click here to go for this product </a>
             </p>
             `;
@@ -164,62 +153,53 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
     ).toFixed(2);
   } else if (discound) {
     req.body.finalPrice = Number.parseFloat(
-      product.price - product.price * (product.discound / 100)
+      product.price - product.price * (discound / 100)
     ).toFixed(2);
   }
-  if (req.files?.mainImage?.length) {
-    const { secure_url, public_id } = await cloudinary.uploader.upload(
-      req.files.mainImage[0].path,
-      {
-        folder: `${process.env.PROJECTNAME}/product/${product.cloudId}`,
-      }
-    );
-    req.body.mainImage = { secure_url, public_id };
-  }
   const imagesIdsUplaoded = [];
-  if (replacSubImages) {
-    if (req.files?.subImages?.length) {
-      const subImages = [];
-      for (const file of req.files.subImages) {
+  if (replacImages) {
+    if (req.files?.images?.length) {
+      const images = [];
+      for (const file of req.files.images) {
         const { secure_url, public_id } = await cloudinary.uploader.upload(
           file.path,
           {
-            folder: `${process.env.PROJECTNAME}/product/${product.cloudId}/subImages`,
+            folder: `${process.env.PROJECTNAME}/product/${product.cloudId}/images`,
           }
         );
-        subImages.push({ secure_url, public_id });
+        images.push({ secure_url, public_id });
       }
-      req.body.subImages = subImages;
+      req.body.images = images;
     }
   } else {
     if (imageId) {
-      const length = product.subImages.length;
-      for (const image of product.subImages) {
+      const length = product.images.length;
+      for (const image of product.images) {
         if (imageId == image.public_id.toString()) {
-          const indexOfImage = product.subImages.indexOf(image);
-          product.subImages.splice(indexOfImage, 1);
-          req.body.subImages = product.subImages;
+          const indexOfImage = product.images.indexOf(image);
+          product.images.splice(indexOfImage, 1);
+          req.body.images = product.images;
           break;
         }
       }
-      if (length - product.subImages.length != 1) {
+      if (length - product.images.length != 1) {
         return next(
-          new Error("This imageId is not defined in this product", {
+          new Error("This image is not defined in those product images", {
             cause: 400,
           })
         );
       }
-      if (req.files?.subImages?.length) {
-        if (req.body.subImages.length + req.files.subImages.length <= 5) {
-          for (const file of req.files.subImages) {
+      if (req.files?.images?.length) {
+        if (req.body.images.length + req.files.images.length <= 5) {
+          for (const file of req.files.images) {
             const { secure_url, public_id } = await cloudinary.uploader.upload(
               file.path,
               {
-                folder: `${process.env.PROJECTNAME}/product/${product.cloudId}/subImages`,
+                folder: `${process.env.PROJECTNAME}/product/${product.cloudId}/images`,
               }
             );
             imagesIdsUplaoded.push(public_id);
-            req.body.subImages.push({ secure_url, public_id });
+            req.body.images.push({ secure_url, public_id });
           }
         } else {
           return next(
@@ -228,19 +208,19 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
         }
       }
     } else {
-      if (req.files?.subImages?.length) {
-        if (product.subImages.length + req.files.subImages.length <= 5) {
-          for (const file of req.files.subImages) {
+      if (req.files?.images?.length) {
+        if (product.images.length + req.files.images.length <= 5) {
+          for (const file of req.files.images) {
             const { secure_url, public_id } = await cloudinary.uploader.upload(
               file.path,
               {
-                folder: `${process.env.PROJECTNAME}/product/${product.cloudId}/subImages`,
+                folder: `${process.env.PROJECTNAME}/product/${product.cloudId}/images`,
               }
             );
             imagesIdsUplaoded.push(public_id);
-            product.subImages.push({ secure_url, public_id });
+            product.images.push({ secure_url, public_id });
           }
-          req.body.subImages = product.subImages;
+          req.body.images = product.images;
         } else {
           return next(
             new Error("You cannot add more 5 photos", { cause: 400 })
@@ -299,12 +279,9 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
     data: req.body,
   });
   if (!updateProduct) {
-    if (req.files?.mainImage?.length) {
-      await cloudinary.uploader.destroy(req.body.mainImage.public_id);
-    }
-    if (req.files?.subImages?.length) {
-      if (replacSubImages) {
-        for (const image of req.body.subImages) {
+    if (req.files?.images?.length) {
+      if (replacImages) {
+        for (const image of req.body.images) {
           await cloudinary.uploader.destroy(image.public_id);
         }
       } else {
@@ -318,12 +295,9 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
   if (imageId) {
     await cloudinary.uploader.destroy(imageId);
   }
-  if (req.files?.mainImage?.length) {
-    await cloudinary.uploader.destroy(product.mainImage.public_id);
-  }
-  if (req.files?.subImages?.length) {
-    if (replacSubImages) {
-      for (const image of product.subImages) {
+  if (req.files?.images?.length) {
+    if (replacImages) {
+      for (const image of product.images) {
         await cloudinary.uploader.destroy(image.public_id);
       }
     }
@@ -343,8 +317,7 @@ export const deleteProduct = asyncHandler(async (req, res, next) => {
   if (!deleteProduct) {
     return next(new Error("In-valid product", { cause: 404 }));
   }
-  await cloudinary.uploader.destroy(deleteProduct.mainImage.public_id);
-  for (const image of deleteProduct.subImages) {
+  for (const image of deleteProduct.images) {
     await cloudinary.uploader.destroy(image.public_id);
   }
   return res.status(200).json({ message: "Done" });
@@ -380,11 +353,11 @@ export const products = async (req, res, next) => {
       path: "categoryId",
       select: "name image",
     },
-    {
-      path: "review",
-      select: "rating message userId",
-      populate: { path: "userId", select: "userName email image " },
-    },
+    // {
+    //   path: "review",
+    //   select: "rating message userId",
+    //   populate: { path: "userId", select: "userName email image " },
+    // },
     {
       path: "subcategoryId",
       select: "name image",
@@ -428,11 +401,11 @@ export const MyProducts = asyncHandler(async (req, res, next) => {
       path: "brandId",
       select: "name image",
     },
-    {
-      path: "review",
-      select: "rating message userId",
-      populate: { path: "userId", select: "userName email image " },
-    },
+    // {
+    //   path: "review",
+    //   select: "rating message userId",
+    //   populate: { path: "userId", select: "userName email image " },
+    // },
   ];
   const apiFeature = new ApiFeatures(
     req.query,
@@ -468,11 +441,11 @@ export const getProductById = asyncHandler(async (req, res, next) => {
       path: "brandId",
       select: "name image",
     },
-    {
-      path: "review",
-      select: "rating message userId",
-      populate: { path: "userId", select: "userName email image " },
-    },
+    // {
+    //   path: "review",
+    //   select: "rating message userId",
+    //   populate: { path: "userId", select: "userName email image " },
+    // },
   ];
   const product = await findOne({
     model: productModel,
@@ -504,11 +477,11 @@ export const getMyProductById = asyncHandler(async (req, res, next) => {
       path: "brandId",
       select: "name image",
     },
-    {
-      path: "review",
-      select: "rating message userId",
-      populate: { path: "userId", select: "userName email image " },
-    },
+    // {
+    //   path: "review",
+    //   select: "rating message userId",
+    //   populate: { path: "userId", select: "userName email image " },
+    // },
   ];
   const product = await findOne({
     model: productModel,
@@ -540,11 +513,11 @@ export const productsOfSpecificSubcategory = asyncHandler(
         path: "brandId",
         select: "name image",
       },
-      {
-        path: "review",
-        select: "rating message userId",
-        populate: { path: "userId", select: "userName email image " },
-      },
+      // {
+      //   path: "review",
+      //   select: "rating message userId",
+      //   populate: { path: "userId", select: "userName email image " },
+      // },
     ];
     const apiFeature = new ApiFeatures(
       req.query,
@@ -582,11 +555,11 @@ export const productsOfSpecificCategory = asyncHandler(
         path: "brandId",
         select: "name image",
       },
-      {
-        path: "review",
-        select: "rating message userId",
-        populate: { path: "userId", select: "userName email image " },
-      },
+      // {
+      //   path: "review",
+      //   select: "rating message userId",
+      //   populate: { path: "userId", select: "userName email image " },
+      // },
     ];
     const apiFeature = new ApiFeatures(
       req.query,

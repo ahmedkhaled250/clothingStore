@@ -8,7 +8,7 @@ class ApiFeatures {
       this.queryData.page = 1;
     }
     if (!this.queryData.size || this.queryData.size <= 0) {
-      this.queryData.size = 2;
+      this.queryData.size = 40;
     }
     this.mongooseQuery
       .skip((parseInt(this.queryData.page) - 1) * parseInt(this.queryData.size))

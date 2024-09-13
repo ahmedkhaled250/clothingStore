@@ -55,21 +55,21 @@ export const createProduct = asyncHandler(async (req, res, next) => {
   ).toFixed(2);
   req.body.cloudId = nanoid();
   const images = [];
-    for (const file of req.files.images) {
-      const { secure_url, public_id } = await cloudinary.uploader.upload(
-        file.path,
-        {
-          folder: `${process.env.PROJECTNAME}/product/${req.body.cloudId}/images`,
-        }
-      );
-      images.push({ secure_url, public_id });
-    }
-    req.body.images = images;
+  for (const file of req.files.images) {
+    const { secure_url, public_id } = await cloudinary.uploader.upload(
+      file.path,
+      {
+        folder: `${process.env.PROJECTNAME}/product/${req.body.cloudId}/images`,
+      }
+    );
+    images.push({ secure_url, public_id });
+  }
+  req.body.images = images;
   const product = await create({ model: productModel, data: req.body });
   if (!product) {
-      for (const image of req.body.images) {
-        await cloudinary.uploader.destroy(image.public_id);
-      }
+    for (const image of req.body.images) {
+      await cloudinary.uploader.destroy(image.public_id);
+    }
     return next(new Error("Fail to create a new product", { cause: 400 }));
   }
   return res.status(201).json({ message: "Done", product });
@@ -106,19 +106,18 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
     });
   }
   if (stock) {
-    const calcStock = stock - product.soldItems;
-    calcStock > 0 ? (req.body.stock = calcStock) : (req.body.stock = 0);
-    if (stock > product.stock) {
-      if (product.wishUserList.length) {
-        for (const id of product.wishUserList) {
-          const user = await findById({
-            model: userModel,
-            condition: id,
-            select: "userName email",
-          });
-          if (user?.status != "blocked") {
-            const link = `${req.protocol}://${req.headers.host}/product/${product.id}`;
-            const message = `
+    req.body.stock = req.body.stock + product.stock
+    req.body.totalAmount = req.body.stock + product.soldItems
+    if (product.wishUserList.length) {
+      for (const id of product.wishUserList) {
+        const user = await findById({
+          model: userModel,
+          condition: id,
+          select: "userName email",
+        });
+        if (user?.status != "blocked") {
+          const link = `${req.protocol}://${req.headers.host}/product/${product.id}`;
+          const message = `
             <p>
             Hello ${user.userName} <br>
             There was a product you tried to buy it but there wasn't the quantity that you wanted <br>
@@ -128,15 +127,14 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
             <a href="${link}">Click here to go for this product </a>
             </p>
             `;
-            const info = await sendEmail({
-              to: user.email,
-              subject: "favorite product",
-              message,
-            });
-            if (info) {
-              const index = product.wishUserList.indexOf(id);
-              product.wishUserList.splice(index, 1);
-            }
+          const info = await sendEmail({
+            to: user.email,
+            subject: "favorite product",
+            message,
+          });
+          if (info) {
+            const index = product.wishUserList.indexOf(id);
+            product.wishUserList.splice(index, 1);
           }
         }
       }

@@ -4,14 +4,14 @@ import { fileValidation, myMulter } from "../../utils/multer.js";
 import endPoint from "./product.endPoints.js";
 import * as validators from "./product.validation.js";
 import * as productController from "./controller/product.js";
-import cartRouter from "../Cart/cart.router.js";
-import reviewRouter from "../review/review.router.js";
-import wishList from "../wishList/wishList.router.js";
+// import cartRouter from "../Cart/cart.router.js";
+// import reviewRouter from "../review/review.router.js";
+// import wishList from "../wishList/wishList.router.js";
 import { Router } from "express";
 const router = Router({ mergeParams: true });
-router.use("/:productId/cart", cartRouter);
-router.use("/:productId/review", reviewRouter);
-router.use("/:productId/wishList", wishList);
+// router.use("/:productId/cart", cartRouter);
+// router.use("/:productId/review", reviewRouter);
+// router.use("/:productId/wishList", wishList);
 router.post(
   "/",
   myMulter(fileValidation.image).array("images", 5),

@@ -6,8 +6,8 @@ import * as validators from "./subcategory.validation.js";
 import * as subcategoryController from "./controller/subcategory.js";
 import { Router } from "express";
 const router = Router({ mergeParams: true });
-// import productRouter from "../Product/product.router.js";
-// router.use("/:subcategoryId/product", productRouter);
+import productRouter from "../Product/product.router.js";
+router.use("/:subcategoryId/product", productRouter);
 router.post(
   "/",
   myMulter(fileValidation.image).single("image"),

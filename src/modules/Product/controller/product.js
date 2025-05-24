@@ -56,7 +56,7 @@ export const createProduct = asyncHandler(async (req, res, next) => {
   req.body.cloudId = nanoid();
   const images = [];
   console.log(req.files);
-  
+
   for (const file of req.files) {
     const { secure_url, public_id } = await cloudinary.uploader.upload(
       file.path,
@@ -83,7 +83,7 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
     price,
     discound,
     stock,
-    replacImages,
+    replaceImages,
     imageId,
     categoryId,
     subcategoryId,
@@ -108,8 +108,8 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
     });
   }
   if (stock) {
-    req.body.stock = req.body.stock + product.stock
-    req.body.totalAmount = req.body.stock + product.soldItems
+    req.body.stock = Number(req.body.stock) + Number(product.stock)
+    req.body.totalAmount = Number(req.body.stock) + Number(product.soldItems)
     if (product.wishUserList.length) {
       for (const id of product.wishUserList) {
         const user = await findById({
@@ -157,8 +157,8 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
     ).toFixed(2);
   }
   const imagesIdsUplaoded = [];
-  if (replacImages) {
-    if (req.files?.images?.length) {
+  if (replaceImages) {
+    if (req.files?.length) {
       const images = [];
       for (const file of req.files) {
         const { secure_url, public_id } = await cloudinary.uploader.upload(
@@ -189,7 +189,7 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
           })
         );
       }
-      if (req.files?.images?.length) {
+      if (req.files?.length) {
         if (req.body.images.length + req.files.length <= 5) {
           for (const file of req.files) {
             const { secure_url, public_id } = await cloudinary.uploader.upload(
@@ -208,7 +208,7 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
         }
       }
     } else {
-      if (req.files?.images?.length) {
+      if (req.files?.length) {
         if (product.images.length + req.files.length <= 5) {
           for (const file of req.files) {
             const { secure_url, public_id } = await cloudinary.uploader.upload(
@@ -279,8 +279,8 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
     data: req.body,
   });
   if (!updateProduct) {
-    if (req.files?.images?.length) {
-      if (replacImages) {
+    if (req.files?.length) {
+      if (replaceImages) {
         for (const image of req.body.images) {
           await cloudinary.uploader.destroy(image.public_id);
         }
@@ -295,8 +295,8 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
   if (imageId) {
     await cloudinary.uploader.destroy(imageId);
   }
-  if (req.files?.images?.length) {
-    if (replacImages) {
+  if (req.files?.length) {
+    if (replaceImages) {
       for (const image of product.images) {
         await cloudinary.uploader.destroy(image.public_id);
       }

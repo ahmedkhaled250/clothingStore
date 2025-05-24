@@ -4,6 +4,9 @@ import categoryRouter from "./Category/category.router.js";
 import subcategoryRouter from "./SubCategory/subcategory.router.js";
 import brandRouter from "./Brand/brand.router.js";
 import productRouter from "./Product/product.router.js";
+import orderRouter from "./order/order.router.js";
+import cartRouter from "./Cart/cart.router.js";
+import couponRouter from "./Coupon/coupon.router.js";
 import morgan from "morgan";
 import { globalError } from "../utils/errorHandling.js";
 import cors from "cors";
@@ -33,6 +36,9 @@ const bootstrap = (app, express) => {
   app.use(`/subcategory`, subcategoryRouter);
   app.use(`/brand`, brandRouter);
   app.use(`/product`, productRouter);
+  app.use(`/cart`, cartRouter);
+  app.use(`/order`, orderRouter);
+  app.use(`/coupon`, couponRouter);
   app.use("*", (req, res) => {
     res.status(404).json({ message: "In-valid routing" });
   });

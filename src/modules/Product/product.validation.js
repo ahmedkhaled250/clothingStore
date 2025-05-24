@@ -39,10 +39,12 @@ export const updateProduct = joi
     colors: joi.array(),
     size: joi.array(),
     imageId: joi.string(),
+    replaceImages: joi.boolean(),
     file: joi.array().items(generalFields.file).max(5),
     categoryId: generalFields.optionalId,
-    subCategoryId: generalFields.optionalId,
+    subcategoryId: generalFields.optionalId,
     brandId: generalFields.optionalId,
+    id:generalFields.id,
     authorization: generalFields.headers,
   })
   .required();
@@ -77,7 +79,7 @@ export const productsOfSpecificSubcategory = joi
   .object({
     ...validateQuery,
     authorization: joi.string(),
-    subCategoryId: generalFields.id,
+    subcategoryId: generalFields.id,
   })
   .required();
 export const productsOfSpecificCategory = joi

@@ -11,11 +11,11 @@ router.post(
   auth(endPoint.order),
   orderController.addOrder
 );
-// router.post(
-//   "/webhook",
-//   express.raw({ type: "application/json" }),
-//   orderController.webhook
-// );
+router.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  orderController.webhook
+);
 router.patch(
   "/:id/cencelOrder",
   validation(validators.cencelOrder),

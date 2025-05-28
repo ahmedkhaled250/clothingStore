@@ -14,7 +14,6 @@ import orderModel from "../../../../DB/models/Order.js";
 
 export const addReview = asyncHandler(async (req, res, next) => {
   const { user } = req;
-  console.log(user);
   const { productId } = req.params;
   if (user.deleted) {
     return next(new Error("Your account is deleted", { cause: 400 }));
@@ -29,7 +28,7 @@ export const addReview = asyncHandler(async (req, res, next) => {
   });
   if (!order) {
     return next(
-      new Error("You cannot add review before receiving this product", {
+      new Error("You cannot add a review before purchasing and receiving this product.", {
         cause: 400,
       })
     );
@@ -37,7 +36,7 @@ export const addReview = asyncHandler(async (req, res, next) => {
 
   const checkReview = await findOne({
     model: reviewModel,
-    condition: { productId, userId: user._id, orderId: order._id },
+    condition: { productId, userId: user._id },
   });
   if (checkReview) {
     return next(
@@ -46,7 +45,6 @@ export const addReview = asyncHandler(async (req, res, next) => {
   }
   req.body.userId = user._id;
   req.body.productId = productId;
-  req.body.orderId = order._id;
   const review = await create({ model: reviewModel, data: req.body });
   if (!review) {
     return next(new Error("Fail to add review", { cause: 400 }));
@@ -64,7 +62,7 @@ export const addReview = asyncHandler(async (req, res, next) => {
   await findByIdAndUpdate({
     model: productModel,
     condition: productId,
-    data: { rating: avrRate, $push: { reviews: review._id } },
+    data: { rating: avrRate},
   });
   return res.status(201).json({ message: "Done", review });
 });

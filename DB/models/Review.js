@@ -19,11 +19,6 @@ const reviewSchema = new Schema(
       ref: "Product",
       required: [true, "ProductId is required"],
     },
-    orderId: {
-      type: Types.ObjectId,
-      ref: "Order",
-      required: [true, "OrderId is required"],
-    },
     deleted: {
       type: Boolean,
       default: false,

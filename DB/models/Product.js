@@ -86,14 +86,14 @@ const productSchema = new Schema(
   },
   {
     timestamps: true,
-    // toJSON: { virtuals: true },
-    // toObject: { virtuals: true },
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
-// productSchema.virtual("review", {
-//   ref: "Review",
-//   localField: "_id",
-//   foreignField: "productId",
-// });
+productSchema.virtual("review", {
+  ref: "Review",
+  localField: "_id",
+  foreignField: "productId",
+});
 const productModel = model("Product", productSchema);
 export default productModel;

@@ -353,11 +353,11 @@ export const products = async (req, res, next) => {
       path: "categoryId",
       select: "name image",
     },
-    // {
-    //   path: "review",
-    //   select: "rating message userId",
-    //   populate: { path: "userId", select: "userName email image " },
-    // },
+    {
+      path: "review",
+      select: "rating message userId",
+      populate: { path: "userId", select: "userName email image " },
+    },
     {
       path: "subcategoryId",
       select: "name image",
@@ -401,11 +401,11 @@ export const MyProducts = asyncHandler(async (req, res, next) => {
       path: "brandId",
       select: "name image",
     },
-    // {
-    //   path: "review",
-    //   select: "rating message userId",
-    //   populate: { path: "userId", select: "userName email image " },
-    // },
+    {
+      path: "review",
+      select: "rating message userId",
+      populate: { path: "userId", select: "userName email image " },
+    },
   ];
   const apiFeature = new ApiFeatures(
     req.query,
@@ -441,11 +441,11 @@ export const getProductById = asyncHandler(async (req, res, next) => {
       path: "brandId",
       select: "name image",
     },
-    // {
-    //   path: "review",
-    //   select: "rating message userId",
-    //   populate: { path: "userId", select: "userName email image " },
-    // },
+    {
+      path: "review",
+      select: "rating message userId",
+      populate: { path: "userId", select: "userName email image " },
+    },
   ];
   const product = await findOne({
     model: productModel,
@@ -477,11 +477,11 @@ export const getMyProductById = asyncHandler(async (req, res, next) => {
       path: "brandId",
       select: "name image",
     },
-    // {
-    //   path: "review",
-    //   select: "rating message userId",
-    //   populate: { path: "userId", select: "userName email image " },
-    // },
+    {
+      path: "review",
+      select: "rating message userId",
+      populate: { path: "userId", select: "userName email image " },
+    },
   ];
   const product = await findOne({
     model: productModel,
@@ -513,11 +513,11 @@ export const productsOfSpecificSubcategory = asyncHandler(
         path: "brandId",
         select: "name image",
       },
-      // {
-      //   path: "review",
-      //   select: "rating message userId",
-      //   populate: { path: "userId", select: "userName email image " },
-      // },
+      {
+        path: "review",
+        select: "rating message userId",
+        populate: { path: "userId", select: "userName email image " },
+      },
     ];
     const apiFeature = new ApiFeatures(
       req.query,
@@ -555,11 +555,11 @@ export const productsOfSpecificCategory = asyncHandler(
         path: "brandId",
         select: "name image",
       },
-      // {
-      //   path: "review",
-      //   select: "rating message userId",
-      //   populate: { path: "userId", select: "userName email image " },
-      // },
+      {
+        path: "review",
+        select: "rating message userId",
+        populate: { path: "userId", select: "userName email image " },
+      },
     ];
     const apiFeature = new ApiFeatures(
       req.query,

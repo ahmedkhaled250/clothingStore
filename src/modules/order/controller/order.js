@@ -281,57 +281,6 @@ export const userOrders = asyncHandler(async (req, res, next) => {
   }
   return res.status(200).json({ message: "Done", orders });
 });
-
-// export const webhook = asyncHandler(async (req, res, next) => {
-//   const sig = req.headers["stripe-signature"];
-//   const stripe = new Stripe(process.env.STRIPE_KEY);
-//   let event;
-//   try {
-//     event = stripe.webhooks.constructEvent(
-//       req.body,
-//       sig,
-//       process.env.endpointSecret
-//     );
-//   } catch (err) {
-//     return next(new Error(`Webhook Error: ${err.message}`, { cause: 400 }));
-//   }
-//   // Handle the event
-//   const { orderId } = event.data.object.metadata;
-//   if (event.type != "checkout.session.completed") {
-//     const order = await findByIdAndUpdate({
-//       model: orderModel,
-//       condition: orderId,
-//       data: { status: "rejected" },
-//     });
-//     for (const product of order.products) {
-//       await updateOne({
-//         model: productModel,
-//         condition: { _id: product.productId },
-//         data: {
-//           $inc: {
-//             soldItems: -parseInt(product.quantity),
-//             stock: parseInt(product.quantity),
-//           },
-//         },
-//       });
-//     }
-//     if (order.couponId) {
-//       await updateOne({
-//         model: couponModel,
-//         condition: { _id: order.couponId },
-//         data: { $pull: { usedBy: user._id } },
-//       });
-//     }
-//     return next(new Error("Rejected order", { cause: 400 }));
-//   }
-//   await updateOne({
-//     model: orderModel,
-//     condition: { _id: orderId },
-//     data: { status: "placed" },
-//   });
-//   return res.status(200).json({ message: "Done" });
-// });
-
 export const webhook = asyncHandler(async (req, res, next) => {
   const sig = req.headers['stripe-signature'];
   const stripe = new Stripe(process.env.STRIPE_KEY);

@@ -333,7 +333,7 @@ export const userOrders = asyncHandler(async (req, res, next) => {
 // });
 
 export const webhook = asyncHandler(async (req, res, next) => {
-  const sig = request.headers['stripe-signature'];
+  const sig = req.headers['stripe-signature'];
   const stripe = new Stripe(process.env.STRIPE_KEY);
   let event;
   try {

@@ -62,6 +62,8 @@ export const addtoCart = asyncHandler(async (req, res, next) => {
   }
 
   let finalPrice = findCart.finalPrice
+  console.log(finalPrice);
+  
   let match = false;
   for (let i = 0; i < findCart.products.length; i++) {
     if (findCart.products[i].productId.toString() == productId) {

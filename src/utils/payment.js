@@ -13,10 +13,10 @@ const payment = async ({
   const session = await stripe.checkout.sessions.create({
     payment_method_types,
     customer_email,
+    metadata,
     cancel_url,
     success_url,
     mode,
-    metadata,
     discounts,
     line_items,
   });

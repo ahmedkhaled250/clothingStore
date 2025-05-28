@@ -127,7 +127,7 @@ export const addOrder = asyncHandler(async (req, res, next) => {
   //   });
   // }
   if (req.body.isCart) {
-    const cart = await findOneAndUpdate({ model: cartModel, condition: { userId: user._id }, data: { products: [] } })
+    const cart = await findOneAndUpdate({ model: cartModel, condition: { userId: user._id }, data: { products: [], finalPrice: 0 } })
     await deleteMany({ model: productCartModel, condition: { cartId: cart._id } })
   } else {
     for (const productId of productsIds) {
@@ -347,6 +347,7 @@ export const webhook = asyncHandler(async (req, res, next) => {
   }
   // Handle the event
   const { orderId } = event.data.object.metadata;
+
   if (event.type != "checkout.session.completed") {
     const order = await findByIdAndUpdate({
       model: orderModel,

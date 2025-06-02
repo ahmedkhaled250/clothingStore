@@ -4,7 +4,7 @@ const productSchema = new Schema(
   {
     name: {
       type: String,
-      required: [true, "userName is required"],
+      required: [true, "Product name is required"],
       min: [2, "minimum length 2 char"],
       max: [20, "max length 2 char"],
       lowercase: true,
@@ -12,23 +12,15 @@ const productSchema = new Schema(
     },
     slug: String,
     description: String,
-    images: { type: [{ secure_url: String, public_id: String }] },
-    // colors: {
-    //   type: [{
-    //     color: String,
-    //     subImages: { type: [{ secure_url: String, public_id: String }] },
-    //     stock,
-    //     TOTALaMOUNT,
-    //     soldItems
-    //   }],
-    //   required: true
-    // },
-    colors: [String],
-    size: {
-      type: [String],
-      enum: ["ss", "s", "m", "l", "xl", "xxl", ""],
+    colors: {
+      type: [Types.ObjectId],
+      ref: "color"
     },
-    stock: {
+    allSizes: {
+      type: [String],
+      enum: ["ss", "s", "m", "l", "xl", "xxl", "xxxl", ""],
+    },
+    totalStock: {
       type: Number,
       default: 0,
     },
@@ -40,7 +32,7 @@ const productSchema = new Schema(
       type: Number,
       default: 1,
     },
-    discound: {
+    discount: {
       type: Number,
       default: 0,
     },

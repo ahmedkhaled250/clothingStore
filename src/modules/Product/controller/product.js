@@ -7,6 +7,7 @@ import {
   findByIdAndDelete,
   findOne,
   findOneAndUpdate,
+  insertMany,
 } from "../../../../DB/DBMethods.js";
 import brandModel from "../../../../DB/models/Brand.js";
 import productModel from "../../../../DB/models/Product.js";
@@ -15,10 +16,11 @@ import { nanoid } from "nanoid";
 import sendEmail from "../../../utils/sendEmail.js";
 import userModel from "../../../../DB/models/User.js";
 import ApiFeatures from "../../../utils/apiFeatures.js";
+import colorModel from "../../../../DB/models/Colors.js";
 
 export const createProduct = asyncHandler(async (req, res, next) => {
   const { user } = req;
-  const { name, price, discound, brandId, categoryId, subcategoryId } =
+  const { name, price, discount, brandId, categoryId, subcategoryId, colors } =
     req.body;
   if (user.deleted) {
     return next(new Error("Your account is stopped", { cause: 400 }));
@@ -39,38 +41,88 @@ export const createProduct = asyncHandler(async (req, res, next) => {
   if (!brand) {
     return next(new Error("In-valid brandId", { cause: 404 }));
   }
+
   req.body.categoryId = categoryId;
-  req.body.totalAmount = req.body.stock;
-  req.body.subcategoryId = subcategoryId;
   req.body.brandId = brandId;
+  req.body.subcategoryId = subcategoryId;
   req.body.createdBy = user._id;
+
+  req.body.cloudId = nanoid();
+  let totalStock = 0
+  let allSizes = []
+  const imageIds = []
+
+  const processedColors = await Promise.all(colors.map(async (colorItem) => {
+    // Get main image for this color
+    const mainImageFile = req.files.find(file => file.fieldname == `mainImage[${colors.indexOf(colorItem)}]`)
+    const { secure_url, public_id } = await cloudinary.uploader.upload(
+      mainImageFile.path,
+      {
+        folder: `${process.env.PROJECTNAME}/product/${req.body.cloudId}/${colorItem.name}/mainImage`,
+      }
+    );
+    imageIds.push(public_id)
+    const mainImage = { secure_url, public_id }
+    // Get additional images for this color
+    const colorImages = req.files.filter(file => file.fieldname == `images[${colors.indexOf(colorItem)}]`)
+
+
+    const images = [];
+    for (const file of colorImages) {
+      const { secure_url, public_id } = await cloudinary.uploader.upload(
+        file.path,
+        {
+          folder: `${process.env.PROJECTNAME}/product/${req.body.cloudId}/${colorItem.name}/images`,
+        }
+      );
+      imageIds.push(public_id)
+      images.push({ secure_url, public_id });
+    }
+
+    return {
+      name: colorItem.name,
+      sizes: colorItem.sizes.map(item => {
+        totalStock += parseInt(item.stock)
+        if (!allSizes.includes(item.size)) allSizes.push(item.size.toLowerCase())
+        return {
+          size: item.size.toLowerCase(),
+          stock: parseInt(item.stock),
+          totalAmount: parseInt(item.stock)
+        }
+      }),
+      mainImage: mainImage,
+      images: images
+    };
+  }));
+
+  console.log({ processedColors });
+
+
+  const colorsCreated = await insertMany({ model: colorModel, data: processedColors });
+
+  req.body.colors = colorsCreated.map(color => color._id)
+
+
+  req.body.allSizes = allSizes
+  req.body.totalStock = totalStock
+  req.body.totalAmount = totalStock
+
   req.body.name = name.toLowerCase();
   req.body.slug = slugify(req.body.name, {
     replacement: "-",
     lower: true,
     trim: true,
   });
-  req.body.finalPrice = Number.parseFloat(
-    price - price * ((discound || 0) / 100)
-  ).toFixed(2);
-  req.body.cloudId = nanoid();
-  const images = [];
-  console.log(req.files);
 
-  for (const file of req.files) {
-    const { secure_url, public_id } = await cloudinary.uploader.upload(
-      file.path,
-      {
-        folder: `${process.env.PROJECTNAME}/product/${req.body.cloudId}/images`,
-      }
-    );
-    images.push({ secure_url, public_id });
-  }
-  req.body.images = images;
+  req.body.finalPrice = Number.parseFloat(
+    price - price * ((discount || 0) / 100)
+  ).toFixed(2);
+
   const product = await create({ model: productModel, data: req.body });
+
   if (!product) {
-    for (const image of req.body.images) {
-      await cloudinary.uploader.destroy(image.public_id);
+    for (const id of imageIds) {
+      await cloudinary.uploader.destroy(id);
     }
     return next(new Error("Fail to create a new product", { cause: 400 }));
   }
@@ -81,7 +133,7 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const {
     price,
-    discound,
+    discount,
     stock,
     replaceImages,
     imageId,
@@ -366,6 +418,10 @@ export const products = async (req, res, next) => {
       path: "brandId",
       select: "name image",
     },
+    {
+      path: "colors",
+      select: "-createdAt -updatedAt",
+    },
   ];
   const apiFeature = new ApiFeatures(
     req.query,
@@ -446,6 +502,10 @@ export const getProductById = asyncHandler(async (req, res, next) => {
       select: "rating message userId",
       populate: { path: "userId", select: "userName email image " },
     },
+    {
+      path: "colors",
+      select: "-createdAt -updatedAt",
+    },
   ];
   const product = await findOne({
     model: productModel,
@@ -518,6 +578,10 @@ export const productsOfSpecificSubcategory = asyncHandler(
         select: "rating message userId",
         populate: { path: "userId", select: "userName email image " },
       },
+      {
+        path: "colors",
+        select: "-createdAt -updatedAt",
+      },
     ];
     const apiFeature = new ApiFeatures(
       req.query,
@@ -559,6 +623,10 @@ export const productsOfSpecificCategory = asyncHandler(
         path: "review",
         select: "rating message userId",
         populate: { path: "userId", select: "userName email image " },
+      },
+      {
+        path: "colors",
+        select: "-createdAt -updatedAt",
       },
     ];
     const apiFeature = new ApiFeatures(

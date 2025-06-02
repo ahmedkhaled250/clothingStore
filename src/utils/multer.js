@@ -4,7 +4,7 @@ export const fileValidation = {
   file: ["application/pdf", "application/msword"],
   video: ["video/mp4"],
 };
-export const myMulter = (customValidation = fileValidation.image) => {
+export const myMulter = (customValidation = fileValidation.image, maxFields = 100) => {
   const storage = multer.diskStorage({});
   const fileFilter = (req, file, cb) => {
     if (customValidation.includes(file.mimetype)) {
@@ -13,6 +13,6 @@ export const myMulter = (customValidation = fileValidation.image) => {
     return cb(new Error("In-valid format", { cause: 400 }), false);
   };
 
-  const upload = multer({ fileFilter, storage });
+  const upload = multer({ fileFilter, storage, limits: { fields: maxFields } });
   return upload;
 };

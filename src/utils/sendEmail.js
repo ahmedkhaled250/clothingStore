@@ -23,3 +23,11 @@ async function sendEmail({to , cc, bcc, subject, message, attachments = [] } = {
 
 
 export default sendEmail
+
+
+
+
+//  You're all verified!  V757QZW6855UDVE1MK1KA4S5
+
+
+

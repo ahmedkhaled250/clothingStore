@@ -27,6 +27,18 @@ const colorSchema = new Schema(
         }
       }]
     },
+    stock: {
+      type: Number,
+      default: 0,
+    },
+    totalAmount: {
+      type: Number,
+      default: 0
+    },
+    soldItems: {
+      type: Number,
+      default: 0
+    },
     mainImage: { type: { secure_url: String, public_id: String } },
     images: { type: [{ secure_url: String, public_id: String }] },
   },

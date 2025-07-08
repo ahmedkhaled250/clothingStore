@@ -25,7 +25,7 @@ router.post(
 
 router.put(
   "/:id",
-  myMulter(fileValidation.image).array("images", 5),
+  myMulter(fileValidation.image).any(),
   validation(validators.updateProduct),
   auth(endPoint.product),
   productController.updateProduct

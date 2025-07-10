@@ -12,6 +12,8 @@ import { decrypt, encrypt } from "../../../utils/encryptAndDecrypt.js";
 import { asyncHandler } from "../../../utils/errorHandling.js";
 export const updateUser = asyncHandler(async (req, res, next) => {
   const { user } = req;
+
+  
   const { email, phone } = req.body;
   if (user.deleted) {
     return next(new Error("Your account is deleted", { cause: 400 }));
@@ -164,21 +166,26 @@ export const updateUser = asyncHandler(async (req, res, next) => {
     req.body.changeTime = Date.now();
   }
 
-  if (phone) {
-    const decryptedPhone = decrypt({ encryptedText: user.phone });
 
+  if (phone) {
+    if (user.phone) {
+      
+    const decryptedPhone = decrypt({ encryptedText: user.phone });
     if (decryptedPhone == phone) {
       return next(
         new Error("You cannot update your phone by the same phone", {
           cause: 400,
         })
       );
+      }
     }
 
     const encryptedPhone = encrypt({ plainText: phone });
     req.body.phone = encryptedPhone;
 
   }
+
+
   const updateUser = await findByIdAndUpdate({
     model: userModel,
     condition: user._id,

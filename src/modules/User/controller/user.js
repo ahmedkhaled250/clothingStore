@@ -1,6 +1,7 @@
 import {
   find,
   findById,
+  findByIdAndUpdate,
   findOne,
   updateOne,
 } from "../../../../DB/DBMethods.js";
@@ -162,8 +163,10 @@ export const updateUser = asyncHandler(async (req, res, next) => {
     req.body.confirmEmail = false;
     req.body.changeTime = Date.now();
   }
+
   if (phone) {
     const decryptedPhone = decrypt({ encryptedText: user.phone });
+
     if (decryptedPhone == phone) {
       return next(
         new Error("You cannot update your phone by the same phone", {
@@ -171,8 +174,10 @@ export const updateUser = asyncHandler(async (req, res, next) => {
         })
       );
     }
+
     const encryptedPhone = encrypt({ plainText: phone });
     req.body.phone = encryptedPhone;
+
   }
   const updateUser = await findByIdAndUpdate({
     model: userModel,

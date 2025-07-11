@@ -74,6 +74,10 @@ const productSchema = new Schema(
       min: [1, "minimum rating 1"],
       max: [5, "maximum rating 5"],
     },
+    numOfReviews: {
+      type: Number,
+      default: 0
+    },
     cloudId: String,
   },
   {

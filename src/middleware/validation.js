@@ -10,6 +10,8 @@ export const validateQuery = {
   page: joi.number(),
   size: joi.number(),
   sort: joi.string(),
+  colorCode: [joi.string(), joi.array()],
+  productSize: [joi.string(), joi.array()],
   stock: [joi.number(), joi.object()],
   price: [joi.number(), joi.object()],
   discound: [joi.number(), joi.object()],

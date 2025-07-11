@@ -3,6 +3,7 @@ import { asyncHandler } from "../../../utils/errorHandling.js";
 import cloudinary from "../../../utils/cloudinary.js";
 import {
   create,
+  find,
   findById,
   findByIdAndDelete,
   findOne,
@@ -90,6 +91,7 @@ export const createProduct = asyncHandler(async (req, res, next) => {
 
     return {
       name: colorItem.name,
+      code: colorItem.code,
       sizes: colorItem.sizes.map(item => {
         if (!allSizes.includes(item.size.toLowerCase())) allSizes.push(item.size.toLowerCase())
         return {
@@ -521,16 +523,49 @@ export const products = async (req, res, next) => {
       select: "-createdAt -updatedAt",
     },
   ];
+
+  let filter = { deleted: false };
+  if ((req.query.productSize || req.query.productSize?.length) && !req.query.colorCode) {
+    filter.allSizes = { $in: req.query.productSize };
+  }
+
+  if (req.query.colorCode || req.query.colorCode?.length) {
+    let colorIds
+
+    if (req.query.productSize || req.query.productSize?.length) {
+      let sizeFilter = {};
+
+      if (Array.isArray(req.query.productSize)) {
+        sizeFilter = { $in: req.query.productSize.map((item) => item.toLowerCase()) };
+      } else if (req.query.productSize) {
+        sizeFilter = req.query.productSize.toLowerCase();
+      }
+      colorIds = await colorModel.find({
+        code: { $in: req.query.colorCode },
+        'sizes': {
+          $elemMatch: {
+            size: sizeFilter
+          }
+        },
+      }).select("_id");
+
+    } else {
+      colorIds = await find({ model: colorModel, condition: { code: { $in: req.query.colorCode } }, select: "_id" })
+    }
+    filter.colors = { $in: colorIds };
+  }
+
   const apiFeature = new ApiFeatures(
     req.query,
-    productModel.find({ deleted: false }).populate(populate)
+    productModel.find(filter).populate(populate)
   )
-    .paginate()
     .filter()
+    .paginate()
     .sort()
     .search()
     .select();
   const products = await apiFeature.mongooseQuery;
+
   if (!products.length) {
     return next(new Error("In-valid products", { cause: 404 }));
   }

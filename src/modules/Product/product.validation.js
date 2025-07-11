@@ -14,6 +14,7 @@ export const createProduct = joi
     colors: joi.array().items(
       joi.object({
         name: joi.string().min(2).max(100).required(),
+        code: joi.string().required(),
         sizes: joi.array().items(
           joi.object({
             size: joi.string().allow("ss", "s", "m", "l", "xl", "xxl", "xxxl", "").required(),

@@ -10,9 +10,17 @@ const colorSchema = new Schema(
       lowercase: true,
       trim: true,
     },
+    code: {
+      type: String,
+      required: [true, "Code name is required"],
+      lowercase: true,
+    },
     sizes: {
-      type: [{
-        size: String,
+      type: [{  
+        size: {
+          type: String,
+          enum: ["ss", "s", "m", "l", "xl", "xxl", "xxxl", ""],
+        },
         stock: {
           type: Number,
           default: 0,

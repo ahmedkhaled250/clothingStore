@@ -16,8 +16,9 @@ class ApiFeatures {
     return this;
   };
   filter = () => {
-    const excludeQueryParams = ["page", "size", "sort", "search", "fields"];
+    const excludeQueryParams = ["page", "size", "sort", "search", "fields", "colorCode", "productSize"];
     const felterQuery = { ...this.queryData };
+
     excludeQueryParams.forEach((param) => {
       delete felterQuery[param];
     });

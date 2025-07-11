@@ -524,7 +524,7 @@ export const products = async (req, res, next) => {
     },
   ];
 
-  let filter = { deleted: false };
+  let filter = { deleted: false,categoryDeleted:false,subcategoryDeleted:false,brandDeleted:false };
   if ((req.query.productSize || req.query.productSize?.length) && !req.query.colorCode) {
     filter.allSizes = { $in: req.query.productSize };
   }
@@ -596,9 +596,42 @@ export const MyProducts = asyncHandler(async (req, res, next) => {
       populate: { path: "userId", select: "userName email image " },
     },
   ];
+
+
+  let filter = { createdBy: user._id };
+  if ((req.query.productSize || req.query.productSize?.length) && !req.query.colorCode) {
+    filter.allSizes = { $in: req.query.productSize };
+  }
+
+  if (req.query.colorCode || req.query.colorCode?.length) {
+    let colorIds
+
+    if (req.query.productSize || req.query.productSize?.length) {
+      let sizeFilter = {};
+
+      if (Array.isArray(req.query.productSize)) {
+        sizeFilter = { $in: req.query.productSize.map((item) => item.toLowerCase()) };
+      } else if (req.query.productSize) {
+        sizeFilter = req.query.productSize.toLowerCase();
+      }
+      colorIds = await colorModel.find({
+        code: { $in: req.query.colorCode },
+        'sizes': {
+          $elemMatch: {
+            size: sizeFilter
+          }
+        },
+      }).select("_id");
+
+    } else {
+      colorIds = await find({ model: colorModel, condition: { code: { $in: req.query.colorCode } }, select: "_id" })
+    }
+    filter.colors = { $in: colorIds };
+  }
+
   const apiFeature = new ApiFeatures(
     req.query,
-    productModel.find({ createdBy: user._id }).populate(populate)
+    productModel.find(filter).populate(populate)
   )
     .filter()
     .paginate()
@@ -716,15 +749,51 @@ export const productsOfSpecificSubcategory = asyncHandler(
         select: "-createdAt -updatedAt",
       },
     ];
+
+
+    let filter = { deleted: fasle, categoryDeleted: false, subcategoryDeleted: false, brandDeleted: false, subcategoryId };
+    if ((req.query.productSize || req.query.productSize?.length) && !req.query.colorCode) {
+      filter.allSizes = { $in: req.query.productSize };
+    }
+
+    if (req.query.colorCode || req.query.colorCode?.length) {
+      let colorIds
+
+      if (req.query.productSize || req.query.productSize?.length) {
+        let sizeFilter = {};
+
+        if (Array.isArray(req.query.productSize)) {
+          sizeFilter = { $in: req.query.productSize.map((item) => item.toLowerCase()) };
+        } else if (req.query.productSize) {
+          sizeFilter = req.query.productSize.toLowerCase();
+        }
+        colorIds = await colorModel.find({
+          code: { $in: req.query.colorCode },
+          'sizes': {
+            $elemMatch: {
+              size: sizeFilter
+            }
+          },
+        }).select("_id");
+
+      } else {
+        colorIds = await find({ model: colorModel, condition: { code: { $in: req.query.colorCode } }, select: "_id" })
+      }
+      filter.colors = { $in: colorIds };
+    }
+
     const apiFeature = new ApiFeatures(
       req.query,
-      productModel.find({ subcategoryId }).populate(populate)
+      productModel.find({ filter }).populate(populate)
     )
       .filter()
       .paginate()
       .sort()
       .select()
       .search();
+
+
+
     const products = await apiFeature.mongooseQuery;
     if (!products.length) {
       return next(new Error("In-valid products", { cause: 404 }));
@@ -762,9 +831,42 @@ export const productsOfSpecificCategory = asyncHandler(
         select: "-createdAt -updatedAt",
       },
     ];
+
+
+    let filter = { deleted: false,categoryDeleted:false,subcategoryDeleted:false,brandDeleted:false, categoryId };
+    if ((req.query.productSize || req.query.productSize?.length) && !req.query.colorCode) {
+      filter.allSizes = { $in: req.query.productSize };
+    }
+
+    if (req.query.colorCode || req.query.colorCode?.length) {
+      let colorIds
+
+      if (req.query.productSize || req.query.productSize?.length) {
+        let sizeFilter = {};
+
+        if (Array.isArray(req.query.productSize)) {
+          sizeFilter = { $in: req.query.productSize.map((item) => item.toLowerCase()) };
+        } else if (req.query.productSize) {
+          sizeFilter = req.query.productSize.toLowerCase();
+        }
+        colorIds = await colorModel.find({
+          code: { $in: req.query.colorCode },
+          'sizes': {
+            $elemMatch: {
+              size: sizeFilter
+            }
+          },
+        }).select("_id");
+
+      } else {
+        colorIds = await find({ model: colorModel, condition: { code: { $in: req.query.colorCode } }, select: "_id" })
+      }
+      filter.colors = { $in: colorIds };
+    }
+
     const apiFeature = new ApiFeatures(
       req.query,
-      productModel.find({ categoryId }).populate(populate)
+      productModel.find(filter).populate(populate)
     )
       .filter()
       .paginate()

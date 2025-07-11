@@ -69,6 +69,18 @@ const productSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    categoryDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    subcategoryDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    brandDeleted: {
+      type: Boolean,
+      default: false,
+    },
     rating: {
       type: Number,
       min: [1, "minimum rating 1"],

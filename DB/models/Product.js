@@ -49,7 +49,12 @@ const productSchema = new Schema(
       ref: "User",
       required: [true, "Oner is required"],
     },
-    wishUserList: [{ type: Types.ObjectId, ref: "User" }],
+    wishUserList: {
+      type: [{
+        colorCode: String,
+        userId: { type: Types.ObjectId, ref: "User" },
+      }]
+    },
     categoryId: {
       type: Types.ObjectId,
       ref: "Category",

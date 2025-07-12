@@ -10,6 +10,15 @@ const productCartSchema = new Schema(
       type: Types.ObjectId,
       ref: "Product",
     },
+    colorCode: {
+      type: String,
+      required:[true,"Color code is required"]
+    },
+    size: {
+      type: String,
+      enum: ["ss", "s", "m", "l", "xl", "xxl", "xxxl", ""],
+      required:[true,"Color code is required"]
+    },
     quantity: Number,
     finalPrice: Number
   },

@@ -4,6 +4,8 @@ export const addtoCart = joi
   .object({
     productId: generalFields.id,
     quantity: joi.number().min(1).required(),
+    colorCode: joi.string().required(),
+    size: joi.number().allow("ss", "s", "m", "l", "xl", "xxl", "xxxl", "").required(),
     authorization: generalFields.headers,
   })
   .required()
@@ -11,6 +13,8 @@ export const deleteFromCart = joi
   .object({
     productId: generalFields.id,
     cartId: generalFields.id,
+    colorCode: joi.string().required(),
+    size: joi.number().allow("ss", "s", "m", "l", "xl", "xxl", "xxxl", "").required(),
     authorization: generalFields.headers,
   })
   .required()

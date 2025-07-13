@@ -751,7 +751,11 @@ export const productsOfSpecificSubcategory = asyncHandler(
     ];
 
 
-    let filter = { deleted: fasle, categoryDeleted: false, subcategoryDeleted: false, brandDeleted: false, subcategoryId };
+    let filter = {
+      deleted: false,
+      // categoryDeleted: false, subcategoryDeleted: false, brandDeleted: false,
+       subcategoryId
+    };
     if ((req.query.productSize || req.query.productSize?.length) && !req.query.colorCode) {
       filter.allSizes = { $in: req.query.productSize };
     }
@@ -833,7 +837,11 @@ export const productsOfSpecificCategory = asyncHandler(
     ];
 
 
-    let filter = { deleted: false,categoryDeleted:false,subcategoryDeleted:false,brandDeleted:false, categoryId };
+    let filter = {
+      deleted: false,
+      // categoryDeleted: false, subcategoryDeleted: false, brandDeleted: false, 
+      categoryId
+    };
     if ((req.query.productSize || req.query.productSize?.length) && !req.query.colorCode) {
       filter.allSizes = { $in: req.query.productSize };
     }

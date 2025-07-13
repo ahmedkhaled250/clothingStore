@@ -754,7 +754,7 @@ export const productsOfSpecificSubcategory = asyncHandler(
     let filter = {
       deleted: false,
       // categoryDeleted: false, subcategoryDeleted: false, brandDeleted: false,
-       subcategoryId
+      subcategoryId
     };
     if ((req.query.productSize || req.query.productSize?.length) && !req.query.colorCode) {
       filter.allSizes = { $in: req.query.productSize };
@@ -785,10 +785,10 @@ export const productsOfSpecificSubcategory = asyncHandler(
       }
       filter.colors = { $in: colorIds };
     }
-
+    
     const apiFeature = new ApiFeatures(
       req.query,
-      productModel.find({ filter }).populate(populate)
+      productModel.find( filter ).populate(populate)
     )
       .filter()
       .paginate()

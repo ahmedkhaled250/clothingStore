@@ -10,9 +10,12 @@ const cartSchema = new Schema(
     },
     products: {
       type: [Types.ObjectId],
-      ref:"productCart"
+      ref: "productCart"
     },
-    finalPrice:Number
+    totalPrice: Number,
+    discount: Number,
+    finalPrice: Number
+
   },
   {
     timestamps: true,

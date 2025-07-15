@@ -19,6 +19,15 @@ const orderSchema = new Schema(
             ref: "Product",
             required: [true, "Quantity is required"],
           },
+          colorCode: {
+            type: String,
+            required: [true, "Color code is required"]
+          },
+          size: {
+            type: String,
+            enum: ["ss", "s", "m", "l", "xl", "xxl", "xxxl", ""],
+            required: [true, "Color code is required"]
+          },
           quantity: { type: Number, required: [true, "Quantity is required"] },
           unitePrice: {
             type: Number,

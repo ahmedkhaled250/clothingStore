@@ -29,6 +29,7 @@ export const createCoupon = asyncHandler(async (req, res, next) => {
   }
   return res.status(201).json({ message: "Done", coupon });
 });
+
 export const updateCoupon = asyncHandler(async (req, res, next) => {
   const { user } = req;
   const { id } = req.params;

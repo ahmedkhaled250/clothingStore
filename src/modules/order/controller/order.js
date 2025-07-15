@@ -21,6 +21,7 @@ import ApiFeatures from "../../../utils/apiFeatures.js";
 import Stripe from "stripe";
 import payment from "../../../utils/payment.js";
 import productCartModel from "../../../../DB/models/ProductsOfCart.js";
+import colorModel from "../../../../DB/models/Colors.js";
 // import { createInvoice } from "../../../utils/pdf.js";
 export const addOrder = asyncHandler(async (req, res, next) => {
   const { user } = req;
@@ -32,7 +33,7 @@ export const addOrder = asyncHandler(async (req, res, next) => {
     const populate = [
       {
         path: "products",
-        select: "productId quantity -_id",
+        select: "productId colorCode size quantity -_id",
       },
     ]
     const cart = await findOne({
@@ -58,30 +59,65 @@ export const addOrder = asyncHandler(async (req, res, next) => {
   }
   let subtotalPrice = 0;
   const finalProducts = [];
-  const productsIds = [];
+  const productsList = [];
+  const colorsList = [];
   for (let product of req.body.products) {
+    const exists = productsList.some(
+      (item) =>
+        item.id === product._id.toString() &&
+        item.colorCode === product.colorCode &&
+        item.size === product.size
+    );
+
+    if (exists) {
+      return next(new Error("Dupplicate product with the same color and size", { cause: 409 }));
+    }
+
+    const populate = [
+      {
+        path: "colors",
+        select: "-createdAt -updatedAt",
+      },
+    ];
+
     const checkProduct = await findOne({
       model: productModel,
       condition: {
         _id: product.productId,
         stock: { $gte: product.quantity },
       },
+      populate
     });
+
     if (!checkProduct) {
       return next(
         new Error("In-valid product to place this order", { cause: 400 })
       );
     }
-    if (productsIds.includes(checkProduct._id.toString())) {
-      return next(new Error("Dupplicate product", { cause: 409 }));
+
+    const checkColor = checkProduct.colors.find((color) => color.code == product.colorCode.toLowerCase())
+
+    if (!checkColor) {
+      return next(new Error(`${checkProduct.name} doesn't have that color code`, { cause: 404 }))
     }
-    productsIds.push(checkProduct._id.toString());
+
+    const checkSize = checkColor.sizes.find(item => item.size == size)
+
+    if (!checkSize) {
+      return next(new Error(`${checkProduct.name} doesn't have that size in that color`, { cause: 404 }))
+    }
+
+    productsList.push({ id: checkProduct._id.toString(), colorCode: product.colorCode, size: product.size });
+
+    colorsList.push({ colorCode: product.colorCode, size: product.size, color: checkColor })
+
     if (req.body.isCart) {
       product = product.toObject();
     }
+
     product.name = checkProduct.name;
     product.unitePrice = checkProduct.finalPrice;
-    product.finalPrice = product.quantity * checkProduct.finalPrice.toFixed(2);
+    product.finalPrice = (product.quantity * checkProduct.finalPrice).toFixed(2);
     subtotalPrice += product.finalPrice;
     finalProducts.push(product);
   }
@@ -97,7 +133,7 @@ export const addOrder = asyncHandler(async (req, res, next) => {
   if (!order) {
     return next(new Error("Fail to add order", { cause: 400 }));
   }
-  const options = req.body.products.map(product => {
+  const productOptions = req.body.products.map(product => {
     return ({
       updateOne: {
         "filter": {
@@ -112,7 +148,25 @@ export const addOrder = asyncHandler(async (req, res, next) => {
       }
     })
   })
-  await productModel.bulkWrite(options)
+  await productModel.bulkWrite(productOptions)
+
+
+  const colorOptions = colorsList.map(item => {
+    return ({
+      updateOne: {
+        "filter": {
+          _id: item.color._id
+        },
+        "update": {
+          $inc: {
+            soldItems: parseInt(product.quantity),
+            stock: -parseInt(product.quantity),
+          }
+        }
+      }
+    })
+  })
+  await colorModel.bulkWrite(colorOptions)
 
   // for (const product of req.body.products) {
   //   await findByIdAndUpdate({

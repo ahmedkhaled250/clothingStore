@@ -5,12 +5,14 @@ import * as validators from "./coupon.validation.js";
 import * as couponController from "./controller/coupon.js";
 import { Router } from "express";
 const router = Router();
+
 router.post(
   "/",
   validation(validators.createCoupon),
   auth(endPoint.coupon),
   couponController.createCoupon
 );
+
 router.put(
   "/:id",
   validation(validators.updateCoupon),

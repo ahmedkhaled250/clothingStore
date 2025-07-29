@@ -120,10 +120,10 @@ export const addtoCart = asyncHandler(async (req, res, next) => {
   for (let i = 0; i < findCart.products.length; i++) {
     if (findCart.products[i].productId.toString() == productId && findCart.products.find(item => item.colorCode == colorCode.toLowerCase()) && findCart.products.find(item => item.size == size.toLowerCase())) {
 
-      finalPrice = finalPrice - findCart.products[i].finalPrice;
-      totalPrice = totalPrice - findCart.products[i].totalPrice;
+      finalPrice = finalPrice - findCart.products.find(item => item.colorCode == colorCode.toLowerCase()).finalPrice;
+      totalPrice = totalPrice - findCart.products.find(item => item.colorCode == colorCode.toLowerCase()).totalPrice;
 
-      await updateOne({ model: productCartModel, condition: { productId, cartId: findCart._id }, data: { quantity, finalPrice: finalProductPrice, totalPrice: totalProductPrice } })
+      await updateOne({ model: productCartModel, condition: { productId, cartId: findCart._id, colorCode: colorCode.toLowerCase(), size: size.toLowerCase()}, data: { quantity, finalPrice: finalProductPrice, totalPrice: totalProductPrice } })
 
       finalPrice = finalPrice + +finalProductPrice
       totalPrice = totalPrice + +totalProductPrice

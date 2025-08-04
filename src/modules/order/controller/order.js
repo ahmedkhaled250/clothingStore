@@ -22,6 +22,7 @@ import Stripe from "stripe";
 import payment from "../../../utils/payment.js";
 import productCartModel from "../../../../DB/models/ProductsOfCart.js";
 import colorModel from "../../../../DB/models/Colors.js";
+import { populate } from "dotenv";
 // import { createInvoice } from "../../../utils/pdf.js";
 export const addOrder = asyncHandler(async (req, res, next) => {
   const { user } = req;
@@ -41,9 +42,11 @@ export const addOrder = asyncHandler(async (req, res, next) => {
       condition: { userId: user._id },
       populate
     });
+
     if (!cart?.products.length) {
       return next(new Error("Your cart is empty", { cause: 400 }));
     }
+
     req.body.isCart = true;
     req.body.products = cart.products;
   }
@@ -62,13 +65,12 @@ export const addOrder = asyncHandler(async (req, res, next) => {
   const productsList = [];
   const colorsList = [];
   for (let product of req.body.products) {
-    const exists = productsList.some(
-      (item) =>
-        item.id === product._id.toString() &&
-        item.colorCode === product.colorCode &&
-        item.size === product.size
-    );
 
+    const exists = productsList.some(
+      (item) => item.id == product.productId &&
+        item.colorCode == product.colorCode.toLowerCase() &&
+        item.size == product.size.toLowerCase()
+    );
     if (exists) {
       return next(new Error("Dupplicate product with the same color and size", { cause: 409 }));
     }
@@ -84,7 +86,7 @@ export const addOrder = asyncHandler(async (req, res, next) => {
       model: productModel,
       condition: {
         _id: product.productId,
-        stock: { $gte: product.quantity },
+        totalStock: { $gte: product.quantity },
       },
       populate
     });
@@ -95,21 +97,21 @@ export const addOrder = asyncHandler(async (req, res, next) => {
       );
     }
 
-    const checkColor = checkProduct.colors.find((color) => color.code == product.colorCode.toLowerCase())
+    const checkColor = checkProduct.colors.find((color) => color.code == product.colorCode.toLowerCase() && color.stock >= product.quantity)
 
     if (!checkColor) {
-      return next(new Error(`${checkProduct.name} doesn't have that color code`, { cause: 404 }))
+      return next(new Error(`${checkProduct.name} doesn't have that color code ${product.colorCode} or there is no stock to place this quantity in this color`, { cause: 404 }))
     }
 
-    const checkSize = checkColor.sizes.find(item => item.size == size)
+    const checkSize = checkColor.sizes.find(item => item.size == product.size.toLowerCase() && item.stock >= product.quantity)
 
     if (!checkSize) {
-      return next(new Error(`${checkProduct.name} doesn't have that size in that color`, { cause: 404 }))
+      return next(new Error(`${checkProduct.name} doesn't have that size ${product.size} with this color code ${product.colorCode} or there is no stock to place this quantity in this size with this color`, { cause: 404 }))
     }
 
-    productsList.push({ id: checkProduct._id.toString(), colorCode: product.colorCode, size: product.size });
+    productsList.push({ id: checkProduct._id, colorCode: product.colorCode, size: product.size });
 
-    colorsList.push({ colorCode: product.colorCode, size: product.size, color: checkColor })
+    colorsList.push({ colorCode: product.colorCode, size: product.size, color: checkColor, quantity: product.quantity })
 
     if (req.body.isCart) {
       product = product.toObject();
@@ -118,7 +120,7 @@ export const addOrder = asyncHandler(async (req, res, next) => {
     product.name = checkProduct.name;
     product.unitePrice = checkProduct.finalPrice;
     product.finalPrice = (product.quantity * checkProduct.finalPrice).toFixed(2);
-    subtotalPrice += product.finalPrice;
+    subtotalPrice += +product.finalPrice;
     finalProducts.push(product);
   }
   req.body.products = finalProducts;
@@ -129,10 +131,13 @@ export const addOrder = asyncHandler(async (req, res, next) => {
   req.body.userId = user._id;
   req.body.status = paymentMethod == "card" ? "waitPayment" : "placed";
   req.body.date = new Date()
+
   const order = await create({ model: orderModel, data: req.body });
   if (!order) {
     return next(new Error("Fail to add order", { cause: 400 }));
   }
+
+
   const productOptions = req.body.products.map(product => {
     return ({
       updateOne: {
@@ -142,14 +147,13 @@ export const addOrder = asyncHandler(async (req, res, next) => {
         "update": {
           $inc: {
             soldItems: parseInt(product.quantity),
-            stock: -parseInt(product.quantity),
+            totalStock: -parseInt(product.quantity),
           }
         }
       }
     })
   })
   await productModel.bulkWrite(productOptions)
-
 
   const colorOptions = colorsList.map(item => {
     return ({
@@ -159,34 +163,38 @@ export const addOrder = asyncHandler(async (req, res, next) => {
         },
         "update": {
           $inc: {
-            soldItems: parseInt(product.quantity),
-            stock: -parseInt(product.quantity),
+            soldItems: parseInt(item.quantity),
+            stock: -parseInt(item.quantity),
+            "sizes.$[sizeItem].soldItems": parseInt(item.quantity),
+            "sizes.$[sizeItem].stock": -parseInt(item.quantity)
           }
-        }
+        },
+        arrayFilters: [
+          { "sizeItem.size": item.size }
+        ]
       }
     })
   })
   await colorModel.bulkWrite(colorOptions)
 
-  // for (const product of req.body.products) {
-  //   await findByIdAndUpdate({
-  //     model: productModel,
-  //     condition: product.productId,
-  //     data: {
-  //       $inc: {
-  //         soldItems: parseInt(product.quantity),
-  //         stock: -parseInt(product.quantity),
-  //       },
-  //     },
-  //   });
-  // }
   if (req.body.isCart) {
-    const cart = await findOneAndUpdate({ model: cartModel, condition: { userId: user._id }, data: { products: [], finalPrice: 0 } })
+    const cart = await findOneAndUpdate({ model: cartModel, condition: { userId: user._id }, data: { products: [], finalPrice: 0, discount: 0, totalPrice: 0 } })
     await deleteMany({ model: productCartModel, condition: { cartId: cart._id } })
   } else {
-    for (const productId of productsIds) {
-      const cart = await updateOne({ model: cartModel, condition: { userId: user._id }, data: { $pull: { products: productId } } })
-      await findOneAndDelete({ model: productCartModel, condition: { productId, cartId: cart._id } })
+    const cart = await findOne({
+      model: cartModel,
+      condition: { userId: user._id },
+    });
+
+    if (cart) {
+      for (const product of req.body.products) {
+        const productCart = await findOneAndDelete({ model: productCartModel, condition: { productId: product.productId, cartId: cart._id, colorCode: product.colorCode, size: product.size } })
+        if (productCart) {
+          cart.products.pull(productCart._id)
+        }
+        // const cart = await updateOne({ model: cartModel, condition: { userId: user._id }, data: { $pull: { products: product.productId } } })
+      }
+      await cart.save()
     }
   }
   if (req.body.coupon) {
@@ -239,7 +247,7 @@ export const addOrder = asyncHandler(async (req, res, next) => {
       customer_email: user.email,
       cancel_url: process.env.CENCEL_URL,
       success_url: process.env.SUCCESS_URL,
-      metadata: { orderId: order._id.toString() },
+      metadata: { orderId: order._id },
       discounts: req.body.couponId ? [{ coupon: req.body.couponId }] : [],
       line_items: order.products.map((product) => {
         return {
@@ -258,19 +266,48 @@ export const addOrder = asyncHandler(async (req, res, next) => {
   }
   return res.status(201).json({ message: "Done" });
 });
+
 export const cencelOrder = asyncHandler(async (req, res, next) => {
   const { user } = req;
   const { id } = req.params;
   if (user.deleted) {
     return next(new Error("Your account is deleted", { cause: 400 }));
   }
+
+
+  const populate = [
+    {
+      path: "products.productId",
+      select: "_id color",
+      populate: {
+        path: "colors",
+        select: "name code sizes stock mainImage images",
+      }
+    },
+  ];
+
   const order = await findOne({
     model: orderModel,
     condition: { _id: id, userId: user._id },
+    populate
   });
+
   if (!order) {
     return next(new Error("In-valid order", { cause: 404 }));
   }
+
+  // return res.status(200).json({ message: "Done", order })
+
+
+  if (order.status == "cenceled") {
+    return next(
+      new Error(
+        `This order has beed cenceled`,
+        { cause: 400 }
+      )
+    );
+  }
+
   if (
     (order.status != "placed" && order.paymentMethod == "cash") ||
     (order.status != "waitPayment" && order.paymentMethod == "card")
@@ -283,27 +320,81 @@ export const cencelOrder = asyncHandler(async (req, res, next) => {
     );
   }
   order.status = "cenceled";
-  for (const product of order.products) {
-    await updateOne({
-      model: productModel,
-      condition: { _id: product.productId },
-      data: {
-        $inc: {
-          soldItems: -parseInt(product.quantity),
-          stock: parseInt(product.quantity),
+
+
+  const productOptions = order.products.map(product => {
+    return ({
+      updateOne: {
+        "filter": {
+          _id: product.productId._id
         },
-      },
-    });
+        "update": {
+          $inc: {
+            soldItems: -parseInt(product.quantity),
+            totalStock: parseInt(product.quantity),
+          }
+        }
+      }
+    })
+  })
+  await productModel.bulkWrite(productOptions)
+
+  const colors = []
+
+  for (const product of order.products) {
+    const color = product.productId.colors.find(color => color.code == product.colorCode)
+    if (color) {
+      colors.push({ id: color._id, quantity: product.quantity, size: product.size })
+    }
+
+    // await updateOne({
+    //   model: productModel,
+    //   condition: { _id: product.productId },
+    //   data: {
+    //     $inc: {
+    //       soldItems: -parseInt(product.quantity),
+    //       stock: parseInt(product.quantity),
+    //     },
+    //   },
+    // });
   }
+
+
+  const colorOptions = colors.map(item => {
+    return ({
+      updateOne: {
+        "filter": {
+          _id: item.id
+        },
+        "update": {
+          $inc: {
+            soldItems: -parseInt(item.quantity),
+            stock: parseInt(item.quantity),
+            "sizes.$[sizeItem].soldItems": -parseInt(item.quantity),
+            "sizes.$[sizeItem].stock": parseInt(item.quantity)
+          }
+        },
+        arrayFilters: [
+          { "sizeItem.size": item.size }
+        ]
+      }
+    })
+  })
+  await colorModel.bulkWrite(colorOptions)
+
+
   if (order.couponId) {
     await updateOne({
       model: couponModel,
-      condition: { usedBy: user._id },
+      condition: { _id: order.couponId },
       data: { $pull: { usedBy: user._id } },
     });
   }
+
   const finalOrder = await order.save();
+
   return res.status(200).json({ message: "Done", order: finalOrder });
+
 });
 export const userOrders = asyncHandler(async (req, res, next) => {
   const { user } = req;

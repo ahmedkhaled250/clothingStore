@@ -455,25 +455,43 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
   // }
   return res.status(200).json({ message: "Done" });
 });
-
 export const deleteProduct = asyncHandler(async (req, res, next) => {
   const { user } = req;
   const { id } = req.params;
   if (user.deleted) {
     return next(new Error("Your account is stopped", { cause: 400 }));
   }
+
+  const populate = [
+    {
+      path: "colors",
+      select: "-createdAt -updatedAt",
+    },
+  ];
+
   const deleteProduct = await findByIdAndDelete({
     model: productModel,
     condition: { _id: id, createdBy: user._id },
+    populate
   });
+
   if (!deleteProduct) {
     return next(new Error("In-valid product", { cause: 404 }));
   }
+
+
+  const public_id = []
+
+  for (const color of deleteProduct.colors) {
+
+  }
+
   for (const image of deleteProduct.images) {
     await cloudinary.uploader.destroy(image.public_id);
   }
   return res.status(200).json({ message: "Done" });
 });
+
 export const softDeleteProduct = asyncHandler(async (req, res, next) => {
   const { user } = req;
   const { id } = req.params;
@@ -524,7 +542,7 @@ export const products = async (req, res, next) => {
     },
   ];
 
-  let filter = { deleted: false,categoryDeleted:false,subcategoryDeleted:false,brandDeleted:false };
+  let filter = { deleted: false, categoryDeleted: false, subcategoryDeleted: false, brandDeleted: false };
   if ((req.query.productSize || req.query.productSize?.length) && !req.query.colorCode) {
     filter.allSizes = { $in: req.query.productSize };
   }
@@ -785,10 +803,10 @@ export const productsOfSpecificSubcategory = asyncHandler(
       }
       filter.colors = { $in: colorIds };
     }
-    
+
     const apiFeature = new ApiFeatures(
       req.query,
-      productModel.find( filter ).populate(populate)
+      productModel.find(filter).populate(populate)
     )
       .filter()
       .paginate()

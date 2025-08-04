@@ -86,6 +86,7 @@ export const addOrder = asyncHandler(async (req, res, next) => {
       model: productModel,
       condition: {
         _id: product.productId,
+        deleted:false,
         totalStock: { $gte: product.quantity },
       },
       populate

@@ -62,7 +62,7 @@ export const addReview = asyncHandler(async (req, res, next) => {
   await findByIdAndUpdate({
     model: productModel,
     condition: productId,
-    data: { rating: avrRate},
+    data: { rating: avrRate, $inc: { numOfReviews: 1 } },
   });
   return res.status(201).json({ message: "Done", review });
 });
@@ -110,9 +110,11 @@ export const deleteReview = asyncHandler(async (req, res, next) => {
     model: reviewModel,
     condition: { userId: user._id, _id: reviewId, productId },
   });
+
   if (!review) {
     return next(new Error("In-valid review", { cause: 404 }));
   }
+
   const reviews = await find({
     model: reviewModel,
     condition: { productId, deleted: false },
@@ -121,7 +123,7 @@ export const deleteReview = asyncHandler(async (req, res, next) => {
     await updateOne({
       model: productModel,
       condition: { _id: productId },
-      data: { rating: null },
+      data: { rating: 0, numOfReviews: 0 },
     });
   } else {
     let sumRate = 0;
@@ -133,7 +135,7 @@ export const deleteReview = asyncHandler(async (req, res, next) => {
     await updateOne({
       model: productModel,
       condition: { _id: review.productId },
-      data: { rating: avrRate },
+      data: { rating: avrRate, $inc: { numOfReviews: -1 } },
     });
   }
   return res.status(200).json({ message: "Done" });
@@ -176,7 +178,7 @@ export const softDeleteReview = async (req, res, next) => {
       await updateOne({
         model: productModel,
         condition: { _id: productId },
-        data: { rating: null },
+        data: { rating: 0, numOfReviews:0 },
       });
     } else {
       let sumRate = 0;
@@ -188,7 +190,7 @@ export const softDeleteReview = async (req, res, next) => {
       await updateOne({
         model: productModel,
         condition: { _id: productId },
-        data: { rating: avrRate },
+        data: { rating: avrRate, $inc: { numOfReviews: -1 } },
       });
     }
   }

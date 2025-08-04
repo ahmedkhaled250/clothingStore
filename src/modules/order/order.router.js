@@ -22,6 +22,12 @@ router.patch(
   auth(endPoint.order),
   orderController.cencelOrder
 );
+router.patch(
+  "/:id/updateStatus",
+  validation(validators.updateStatus),
+  auth(endPoint.updateStatus),
+  orderController.updateStatus
+);
 router.get(
   "/",
   validation(validators.userOrders),

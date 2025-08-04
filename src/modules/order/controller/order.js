@@ -396,6 +396,67 @@ export const cencelOrder = asyncHandler(async (req, res, next) => {
   return res.status(200).json({ message: "Done", order: finalOrder });
 
 });
+export const updateStatus = asyncHandler(async (req, res, next) => {
+  const { user } = req;
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (user.deleted) {
+    return next(new Error("Your account is deleted", { cause: 400 }));
+  }
+
+
+  const populate = [
+    {
+      path: "userId",
+      select: "userName email image",
+    },
+    {
+      path: "products.productId",
+    },
+    // {
+    //   path: "couponId",
+    //   select: "name amount",
+    // },
+  ];
+
+  let finalStatus
+
+  switch (status) {
+    case 1:
+      finalStatus = "placed"
+      break;
+    case 2:
+      finalStatus = "onWay"
+      break;
+    case 3:
+      finalStatus = "received"
+      break;
+    case 4:
+      finalStatus = "rejected"
+      break;
+
+    default:
+      return next(new Error("You have to make the status between 1 and 4 ", { cause: 400 }))
+      break;
+  }
+
+  const order = await findOneAndUpdate({
+    model: orderModel,
+    condition: { _id: id, userId: user._id },
+    data: { status: finalStatus },
+    populate,
+    option: { new: true }
+  });
+
+  if (!order) {
+    return next(new Error("In-valid order", { cause: 404 }));
+  }
+
+
+  return res.status(200).json({ message: "Done", order });
+
+});
 export const userOrders = asyncHandler(async (req, res, next) => {
   const { user } = req;
   const populate = [

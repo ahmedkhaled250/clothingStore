@@ -48,6 +48,13 @@ export const cencelOrder = joi
     authorization: generalFields.headers,
   })
   .required();
+export const updateStatus = joi
+  .object({
+    status: joi.number().min(1).max(4).required(),
+    id: generalFields.id,
+    authorization: generalFields.headers,
+  })
+  .required();
 export const userOrders = joi
   .object({
     ...validateQuery,

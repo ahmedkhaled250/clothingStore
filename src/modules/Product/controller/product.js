@@ -586,6 +586,7 @@ export const products = async (req, res, next) => {
   const products = await apiFeature.mongooseQuery;
   const total = await countDocuments({
     model: productModel,
+    condition: filter,
   });
   if (!total) {
     return next(new Error("In-valid products", { cause: 404 }));
@@ -662,6 +663,7 @@ export const MyProducts = asyncHandler(async (req, res, next) => {
   const products = await apiFeature.mongooseQuery;
   const total = await countDocuments({
     model: productModel,
+    condition: filter,
   });
   if (!total) {
     return next(new Error("In-valid products", { cause: 404 }));
@@ -777,7 +779,9 @@ export const productsOfSpecificSubcategory = asyncHandler(
 
     let filter = {
       deleted: false,
-      // categoryDeleted: false, subcategoryDeleted: false, brandDeleted: false,
+      categoryDeleted: false,
+      subcategoryDeleted: false,
+      brandDeleted: false,
       subcategoryId
     };
     if ((req.query.productSize || req.query.productSize?.length) && !req.query.colorCode) {
@@ -825,6 +829,7 @@ export const productsOfSpecificSubcategory = asyncHandler(
     const products = await apiFeature.mongooseQuery;
     const total = await countDocuments({
       model: productModel,
+      condition: filter,
     });
     if (!total) {
       return next(new Error("In-valid products", { cause: 404 }));
@@ -866,7 +871,7 @@ export const productsOfSpecificCategory = asyncHandler(
 
     let filter = {
       deleted: false,
-      // categoryDeleted: false, subcategoryDeleted: false, brandDeleted: false, 
+      categoryDeleted: false, subcategoryDeleted: false, brandDeleted: false, 
       categoryId
     };
     if ((req.query.productSize || req.query.productSize?.length) && !req.query.colorCode) {
@@ -911,6 +916,7 @@ export const productsOfSpecificCategory = asyncHandler(
     const products = await apiFeature.mongooseQuery;
     const total = await countDocuments({
       model: productModel,
+      condition: filter,
     });
     if (!total) {
       return next(new Error("In-valid products", { cause: 404 }));

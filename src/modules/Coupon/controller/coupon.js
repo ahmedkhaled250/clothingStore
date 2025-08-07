@@ -4,6 +4,7 @@ import {
   findById,
   findByIdAndUpdate,
   findOne,
+  countDocuments,
 } from "../../../../DB/DBMethods.js";
 import couponModel from "../../../../DB/models/Coupon.js";
 import ApiFeatures from "../../../utils/apiFeatures.js";
@@ -119,10 +120,13 @@ export const coupons = asyncHandler(async (req, res, next) => {
     .select()
     .sort();
   const coupons = await apiFeature.mongooseQuery;
-  if (!coupons.length) {
+  const total = await countDocuments({
+    model: couponModel,
+  });
+  if (!total) {
     return next(new Error("In-valid coupon", { cause: 404 }));
   }
-  return res.status(200).json({ message: "Done", coupons });
+  return res.status(200).json({ message: "Done", coupons, total });
 });
 export const coupon = asyncHandler(async (req, res, next) => {
   const { id } = req.params;

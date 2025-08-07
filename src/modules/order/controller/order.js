@@ -8,6 +8,7 @@ import {
   findOneAndDelete,
   findOneAndUpdate,
   updateOne,
+  countDocuments,
 } from "../../../../DB/DBMethods.js";
 // import { fileURLToPath } from "url";
 // import path from "path";
@@ -483,10 +484,14 @@ export const userOrders = asyncHandler(async (req, res, next) => {
     .select()
     .sort();
   const orders = await apiFeature.mongooseQuery;
-  if (!orders.length) {
+  const total = await countDocuments({
+    model: orderModel,
+    condition: { userId: user._id },
+  });
+  if (!total) {
     return next(new Error("In-valid orders", { cause: 404 }));
   }
-  return res.status(200).json({ message: "Done", orders });
+  return res.status(200).json({ message: "Done", orders, total });
 });
 export const webhook = asyncHandler(async (req, res, next) => {
   const sig = req.headers['stripe-signature'];

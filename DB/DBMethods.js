@@ -158,3 +158,8 @@ export const deleteMany = async ({
     .populate(populate);
   return result;
 };
+
+export const countDocuments = async ({ model, condition = {} } = {}) => {
+  const result = await model.countDocuments(condition);
+  return result;
+};

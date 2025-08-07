@@ -6,6 +6,7 @@ import {
   findById,
   findOne,
   findOneAndUpdate,
+  countDocuments,
 } from "../../../../DB/DBMethods.js";
 import brandModel from "../../../../DB/models/Brand.js";
 import { nanoid } from "nanoid";
@@ -128,10 +129,13 @@ export const brands = asyncHandler(async (req, res, next) => {
     .sort()
     .paginate();
   const brands = await apiFeature.mongooseQuery;
-  if (!brands.length) {
+  const total = await countDocuments({
+    model: brandModel,
+  });
+  if (!total) {
     return next(new Error("In-valid brands", { cause: 404 }));
   }
-  return res.status(200).json({ message: "Done", brands });
+  return res.status(200).json({ message: "Done", brands, total });
 });
 export const getBrandById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;

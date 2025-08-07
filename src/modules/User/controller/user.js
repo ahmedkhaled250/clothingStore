@@ -4,6 +4,7 @@ import {
   findByIdAndUpdate,
   findOne,
   updateOne,
+  countDocuments,
 } from "../../../../DB/DBMethods.js";
 import userModel from "../../../../DB/models/User.js";
 import { compare, hash } from "../../../utils/HashAndCompare.js";
@@ -309,7 +310,10 @@ export const users = asyncHandler(async (req, res, next) => {
     model: userModel,
     select: "-password",
   });
-  if (!users.length) {
+  const total = await countDocuments({
+    model: userModel,
+  });
+  if (!total) {
     return next(new Error("In-valid users", { cause: 404 }));
   }
   const finalUsers = [];
@@ -317,5 +321,5 @@ export const users = asyncHandler(async (req, res, next) => {
     if (user.phone) user.phone = decrypt({ encryptedText: user.phone });
     finalUsers.push(user);
   }
-  return res.status(200).json({ message: "Done", users });
+  return res.status(200).json({ message: "Done", users, total });
 });

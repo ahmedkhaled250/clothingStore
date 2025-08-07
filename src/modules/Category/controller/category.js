@@ -3,6 +3,7 @@ import { asyncHandler } from "../../../utils/errorHandling.js";
 import cloudinary from "../../../utils/cloudinary.js";
 import { nanoid } from "nanoid";
 import {
+  countDocuments,
   create,
   find,
   findById,
@@ -134,10 +135,13 @@ export const categories = asyncHandler(async (req, res, next) => {
     skip,
     limit,
   });
-  if (!categories.length) {
+  const total = await countDocuments({
+    model: categoryModel,
+  });
+  if (!total) {
     return next(new Error("In-valid category", { cause: 404 }));
   }
-  return res.status(200).json({ message: "Done", categories });
+  return res.status(200).json({ message: "Done", categories, total });
 });
 export const getCategoryById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;

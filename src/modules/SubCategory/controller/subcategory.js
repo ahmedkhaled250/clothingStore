@@ -7,6 +7,7 @@ import {
   findById,
   findOne,
   findOneAndUpdate,
+  countDocuments,
 } from "../../../../DB/DBMethods.js";
 import categoryModel from "../../../../DB/models/Category.js";
 import paginate from "../../../utils/paginate.js";
@@ -165,10 +166,13 @@ export const subCategories = asyncHandler(async (req, res, next) => {
     skip,
     limit,
   });
-  if (!subCategories.length) {
+  const total = await countDocuments({
+    model: subcategoryModel,
+  });
+  if (!total) {
     return next(new Error("In-valid subcategory", { cause: 404 }));
   }
-  return res.status(200).json({ message: "Done", subCategories });
+  return res.status(200).json({ message: "Done", subCategories, total });
 });
 export const subCategoryByCategoryId = asyncHandler(async (req, res, next) => {
   const { categoryId } = req.params
@@ -201,10 +205,14 @@ export const subCategoryByCategoryId = asyncHandler(async (req, res, next) => {
     skip,
     limit,
   });
-  if (!subCategories.length) {
+  const total = await countDocuments({
+    model: subcategoryModel,
+    condition: { categoryId },
+  });
+  if (!total) {
     return next(new Error("In-valid subcategory", { cause: 404 }));
   }
-  return res.status(200).json({ message: "Done", subCategories });
+  return res.status(200).json({ message: "Done", subCategories, total });
 });
 export const getSubcategoryById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;

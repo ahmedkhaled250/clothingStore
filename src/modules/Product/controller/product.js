@@ -9,6 +9,7 @@ import {
   findOne,
   findOneAndUpdate,
   insertMany,
+  countDocuments,
 } from "../../../../DB/DBMethods.js";
 import brandModel from "../../../../DB/models/Brand.js";
 import productModel from "../../../../DB/models/Product.js";
@@ -583,11 +584,13 @@ export const products = async (req, res, next) => {
     .search()
     .select();
   const products = await apiFeature.mongooseQuery;
-
-  if (!products.length) {
+  const total = await countDocuments({
+    model: productModel,
+  });
+  if (!total) {
     return next(new Error("In-valid products", { cause: 404 }));
   }
-  return res.status(200).json({ message: "Done", products });
+  return res.status(200).json({ message: "Done", products, total });
 };
 export const MyProducts = asyncHandler(async (req, res, next) => {
   const { user } = req;
@@ -657,10 +660,13 @@ export const MyProducts = asyncHandler(async (req, res, next) => {
     .select()
     .search();
   const products = await apiFeature.mongooseQuery;
-  if (!products.length) {
+  const total = await countDocuments({
+    model: productModel,
+  });
+  if (!total) {
     return next(new Error("In-valid products", { cause: 404 }));
   }
-  return res.status(200).json({ message: "Done", products });
+  return res.status(200).json({ message: "Done", products, total });
 });
 export const getProductById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
@@ -817,10 +823,13 @@ export const productsOfSpecificSubcategory = asyncHandler(
 
 
     const products = await apiFeature.mongooseQuery;
-    if (!products.length) {
+    const total = await countDocuments({
+      model: productModel,
+    });
+    if (!total) {
       return next(new Error("In-valid products", { cause: 404 }));
     }
-    return res.status(200).json({ message: "Done", products });
+    return res.status(200).json({ message: "Done", products, total });
   }
 );
 export const productsOfSpecificCategory = asyncHandler(
@@ -900,9 +909,12 @@ export const productsOfSpecificCategory = asyncHandler(
       .select()
       .search();
     const products = await apiFeature.mongooseQuery;
-    if (!products.length) {
+    const total = await countDocuments({
+      model: productModel,
+    });
+    if (!total) {
       return next(new Error("In-valid products", { cause: 404 }));
     }
-    return res.status(200).json({ message: "Done", products });
+    return res.status(200).json({ message: "Done", products, total });
   }
 );

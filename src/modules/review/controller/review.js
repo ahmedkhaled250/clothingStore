@@ -6,6 +6,7 @@ import {
   findByIdAndUpdate,
   findOne,
   updateOne,
+  countDocuments,
 } from "../../../../DB/DBMethods.js";
 import productModel from "../../../../DB/models/Product.js";
 import reviewModel from "../../../../DB/models/Review.js";
@@ -223,10 +224,14 @@ export const getReviewByProduct = async (req, res, next) => {
     .select()
     .search();
   const reviews = await apiFeature.mongooseQuery;
-  if (!reviews.length) {
+  const total = await countDocuments({
+    model: reviewModel,
+    condition: { productId, deleted: false },
+  });
+  if (!total) {
     return next(new Error("In-valid reviews", { cause: 404 }));
   }
-  return res.status(200).json({ message: "Done", reviews });
+  return res.status(200).json({ message: "Done", reviews, total });
 };
 export const review = async (req, res, next) => {
   const { productId, id } = req.params;

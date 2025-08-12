@@ -8,13 +8,18 @@ const cartSchema = new Schema(
       unique: [true, "only one cart for each user"],
       required: [true, "userId is required"],
     },
+    couponId: {
+      type: Types.ObjectId,
+      ref: "Coupon",
+    },
     products: {
       type: [Types.ObjectId],
       ref: "productCart"
     },
     totalPrice: Number,
     discount: Number,
-    finalPrice: Number
+    finalPrice: Number,
+    priceAfterCoupon: Number
   },
   {
     timestamps: true,

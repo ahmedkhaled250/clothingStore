@@ -31,10 +31,15 @@ export const addOrder = asyncHandler(async (req, res, next) => {
   if (user.deleted) {
     return next(new Error("Your account is deleted", { cause: 400 }));
   }
+  let checkCoupon
   if (!req.body.products) {
     const populate = [
       {
         path: "products",
+        select: "productId colorCode size quantity -_id",
+      },
+      {
+        path: "couponId",
         select: "productId colorCode size quantity -_id",
       },
     ]
@@ -48,10 +53,22 @@ export const addOrder = asyncHandler(async (req, res, next) => {
       return next(new Error("Your cart is empty", { cause: 400 }));
     }
 
+
+    if (cart.couponId) {
+      if (cart.couponId.expireDate.getTime() < Date.now()) {
+        return next(new Error("In-valid or expired coupon", { cause: 404 }));
+      }
+      checkCoupon = true
+      req.body.coupon = cart.couponId;
+    }
+
     req.body.isCart = true;
     req.body.products = cart.products;
   }
   if (couponName) {
+    if (checkCoupon) {
+      return next(new Error("You cannot add coupon and there's in your cart another one", { cause: 400 }))
+    }
     const coupon = await findOne({
       model: couponModel,
       condition: { name: couponName.toLowerCase(), usedBy: { $nin: user._id } },
@@ -87,7 +104,7 @@ export const addOrder = asyncHandler(async (req, res, next) => {
       model: productModel,
       condition: {
         _id: product.productId,
-        deleted:false,
+        deleted: false,
         totalStock: { $gte: product.quantity },
       },
       populate
@@ -469,10 +486,10 @@ export const userOrders = asyncHandler(async (req, res, next) => {
     {
       path: "products.productId",
     },
-    // {
-    //   path: "couponId",
-    //   select: "name amount",
-    // },
+    {
+      path: "couponId",
+      select: "name amount",
+    },
   ];
   const apiFeature = new ApiFeatures(
     req.query,

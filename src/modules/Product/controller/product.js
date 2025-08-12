@@ -150,7 +150,6 @@ export const createProduct = asyncHandler(async (req, res, next) => {
   return res.status(201).json({ message: "Done", product });
 });
 
-// test 
 export const updateProduct = asyncHandler(async (req, res, next) => {
   const { user } = req
   const { id } = req.params
@@ -411,7 +410,8 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
     }
     req.body.brandId = brandId;
   }
-  console.log(parseInt(totalStock));
+
+  delete req.body.colors
 
   const updateProduct = await findOneAndUpdate({
     model: productModel,

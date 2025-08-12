@@ -15,7 +15,7 @@ import productCartModel from "../../../../DB/models/ProductsOfCart.js";
 
 export const addtoCart = asyncHandler(async (req, res, next) => {
   const { user } = req;
-  const { productId, quantity, size, colorCode } = req.body;
+  const { productId, quantity, size, colorCode, couponName } = req.body;
   if (user.deleted) {
     return next(new Error("Your account is deleted", { cause: 400 }));
   }
@@ -93,6 +93,19 @@ export const addtoCart = asyncHandler(async (req, res, next) => {
   const finalProductPrice = (checkProduct.finalPrice * quantity).toFixed(2);
   const totalProductPrice = (checkProduct.price * quantity).toFixed(2);
 
+  if (couponName) {
+    const coupon = await findOne({
+      model: couponModel,
+      condition: { name: couponName.toLowerCase(), usedBy: { $nin: user._id } },
+    });
+    if (!coupon || coupon.expireDate.getTime() < Date.now()) {
+      return next(new Error("In-valid or expired coupon", { cause: 404 }));
+    }
+    req.body.coupon = coupon;
+  }
+
+
+
   if (!findCart) {
     const cart = await create({
       model: cartModel,
@@ -106,6 +119,13 @@ export const addtoCart = asyncHandler(async (req, res, next) => {
     cart.finalPrice = finalProductPrice
     cart.totalPrice = totalProductPrice
     cart.discount = (totalProductPrice - finalProductPrice)
+    if (req.body.coupon) {
+      cart.priceAfterCoupon = Number.parseFloat(finalProductPrice - finalProductPrice * ((req.body.coupon.amount) / 100)).toFixed(2)
+      cart.couponId = req.body.coupon._id
+    } else {
+      cart.priceAfterCoupon = finalProductPrice
+    }
+
     await cart.save()
     const getCart = await findById({ model: cartModel, condition: cart._id, populate: populateCart })
     return res.status(201).json({ message: "Done", cart: getCart });
@@ -122,13 +142,21 @@ export const addtoCart = asyncHandler(async (req, res, next) => {
 
       finalPrice = finalPrice - findCart.products.find(item => item.colorCode == colorCode.toLowerCase()).finalPrice;
       totalPrice = totalPrice - findCart.products.find(item => item.colorCode == colorCode.toLowerCase()).totalPrice;
-
-      await updateOne({ model: productCartModel, condition: { productId, cartId: findCart._id, colorCode: colorCode.toLowerCase(), size: size.toLowerCase()}, data: { quantity, finalPrice: finalProductPrice, totalPrice: totalProductPrice } })
+      await updateOne({ model: productCartModel, condition: { productId, cartId: findCart._id, colorCode: colorCode.toLowerCase(), size: size.toLowerCase() }, data: { quantity, finalPrice: finalProductPrice, totalPrice: totalProductPrice } })
 
       finalPrice = finalPrice + +finalProductPrice
       totalPrice = totalPrice + +totalProductPrice
 
-      findCart = await findOneAndUpdate({ model: cartModel, condition: { _id: findCart._id }, data: { totalPrice, finalPrice, discount: (totalPrice - finalPrice) }, option: { new: true }, populate: populateCart })
+
+      let priceAfterCoupon = Number.parseFloat(finalPrice - finalPrice * ((req.body.coupon?.amount || 0) / 100)).toFixed(2)
+
+
+      findCart = await findOneAndUpdate({
+        model: cartModel, condition: { _id: findCart._id }, data: {
+          ...(req.body.coupon?._id && { couponId: req.body.coupon._id }),
+          priceAfterCoupon, totalPrice, finalPrice, discount: (totalPrice - finalPrice)
+        }, option: { new: true }, populate: populateCart
+      })
       match = true;
       break;
     }
@@ -157,6 +185,9 @@ export const deleteFromCart = asyncHandler(async (req, res, next) => {
   const populate = [
     {
       path: "products",
+    },
+    {
+      path: "couponId",
     },
   ]
   let cart = await findOne({
@@ -194,8 +225,15 @@ export const deleteFromCart = asyncHandler(async (req, res, next) => {
       const deleteProduct = await findOneAndDelete({ model: productCartModel, condition: { productId, cartId: cart._id, colorCode: colorCode.toLowerCase(), size: size.toLowerCase() } })
       finalPrice = +cart.finalPrice - +deleteProduct.finalPrice
       totalPrice = +cart.totalPrice - +deleteProduct.totalPrice
+      let priceAfterCoupon
+      if (cart.couponId) {
+        priceAfterCoupon =
+          priceAfterCoupon = Number.parseFloat(finalPrice - finalPrice * ((req.body.coupon.amount) / 100)).toFixed(2)
+      } else {
+        priceAfterCoupon = finalPrice.toFixed(2)
+      }
       cart = await findOneAndUpdate({
-        model: cartModel, condition: { _id: cart._id }, data: { $pull: { products: deleteProduct._id }, finalPrice: finalPrice.toFixed(2), totalPrice: totalPrice.toFixed(2), discount: (finalPrice.toFixed(2) - totalPrice.toFixed(2)) },
+        model: cartModel, condition: { _id: cart._id }, data: { $pull: { products: deleteProduct._id }, priceAfterCoupon, finalPrice: finalPrice.toFixed(2), totalPrice: totalPrice.toFixed(2), discount: (finalPrice.toFixed(2) - totalPrice.toFixed(2)) },
         option: { new: true },
         populate: populateCart
       })
@@ -233,6 +271,7 @@ export const removeProductsFromCart = asyncHandler(async (req, res, next) => {
     cart.finalPrice = 0,
       cart.discount = 0,
       cart.totalPrice = 0,
+      cart.priceAfterCoupon = 0,
       await cart.save();
     await deleteMany({ model: productCartModel, condition: { cartId: cart._id } })
     return res.status(200).json({ message: "Done" });
@@ -249,6 +288,10 @@ export const getMyCart = asyncHandler(async (req, res, next) => {
     {
       path: "userId",
       select: "userName email image",
+    },
+    {
+      path: "couponId",
+      select: "amount expireDate name",
     },
     {
       path: "products",

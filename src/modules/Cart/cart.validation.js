@@ -5,6 +5,7 @@ export const addtoCart = joi
     productId: generalFields.id,
     quantity: joi.number().min(1).required(),
     colorCode: joi.string().required(),
+    couponName: joi.string(),
     size: joi.number().allow("ss", "s", "m", "l", "xl", "xxl", "xxxl", "").required(),
     authorization: generalFields.headers,
   })

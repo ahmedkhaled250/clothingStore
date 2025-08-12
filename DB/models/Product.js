@@ -49,6 +49,14 @@ const productSchema = new Schema(
       ref: "User",
       required: [true, "Oner is required"],
     },
+    updatedBy: {
+      type: Types.ObjectId,
+      ref: "User",
+    },
+    deletedBy: {
+      type: Types.ObjectId,
+      ref: "User",
+    },
     wishUserList: {
       type: [{
         colorCode: String,

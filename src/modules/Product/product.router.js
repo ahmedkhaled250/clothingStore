@@ -23,6 +23,7 @@ router.post(
   productController.createProduct
 );
 
+// test
 router.put(
   "/:id",
   myMulter(fileValidation.image).any(),
@@ -31,12 +32,12 @@ router.put(
   productController.updateProduct
 );
 
-router.delete(
-  "/:id",
-  validation(validators.IdAndHeaders),
-  auth(endPoint.product),
-  productController.deleteProduct
-);
+// router.delete(
+//   "/:id",
+//   validation(validators.IdAndHeaders),
+//   auth(endPoint.product),
+//   productController.deleteProduct
+// );
 
 router.patch(
   "/:id",

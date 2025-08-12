@@ -15,7 +15,6 @@ const cartSchema = new Schema(
     totalPrice: Number,
     discount: Number,
     finalPrice: Number
-
   },
   {
     timestamps: true,

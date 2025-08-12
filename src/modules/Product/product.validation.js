@@ -1,5 +1,5 @@
 import joi from "joi";
-import { generalFields, validateQuery } from "../../middleware/validation.js";
+import { generalFields, validateObjectId, validateQuery } from "../../middleware/validation.js";
 export const createProduct = joi
   .object({
     name: joi.string().min(2).max(200).required().messages({
@@ -33,9 +33,6 @@ export const createProduct = joi
   })
   .required();
 
-
-
-
 export const updateProduct = joi
   .object({
     name: joi.string().min(2).max(200).messages({
@@ -47,13 +44,14 @@ export const updateProduct = joi
       "string.empty": "not allowed to be empty",
       "string.base": "only string is allowed",
     }),
-    colors: joi.array().items(
-      joi.object({
+    colors: joi.array().items(joi.object({
+      _id:generalFields.id,
         name: joi.string().min(2).max(100),
+        code: joi.string(),
         sizes: joi.array().items(
           joi.object({
-            size: joi.string().allow("ss", "s", "m", "l", "xl", "xxl", "xxxl", ""),
-            stock: joi.number()
+            _id: generalFields.id,
+            stock: joi.number().required()
           })
         ),
       })
@@ -65,8 +63,9 @@ export const updateProduct = joi
     subcategoryId: generalFields.optionalId,
     brandId: generalFields.optionalId,
     authorization: generalFields.headers,
-    replaceImages: joi.boolean(),
-    imageId: joi.string(),
+    id: generalFields.id,
+    // replaceImages: joi.boolean(),
+    // imageId: joi.string(),
   })
   .required();
 

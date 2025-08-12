@@ -6,6 +6,7 @@ import * as validators from "./brand.validation.js";
 import * as brandController from "./controller/brand.js";
 import { Router } from "express";
 const router = Router();
+
 router.post(
   "/",
   myMulter(fileValidation.image).single("image"),
@@ -13,6 +14,7 @@ router.post(
   auth(endPoint.brand),
   brandController.createBrand
 );
+
 router.put(
   "/:id",
   myMulter(fileValidation.image).single("image"),
@@ -22,9 +24,11 @@ router.put(
 );
 
 router.get("/", validation(validators.brands), brandController.brands);
+
 router.get(
   "/:id",
   validation(validators.getBrandById),
   brandController.getBrandById
 );
+
 export default router;

@@ -24,9 +24,11 @@ export const createBrand = asyncHandler(async (req, res, next) => {
     condition: { name },
     select: "name",
   });
+
   if (checkName) {
     return next(new Error("Dupplicate name", { cause: 409 }));
   }
+  
   req.body.slug = slugify(name, {
     replacement: "-",
     lower: true,

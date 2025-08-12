@@ -10,11 +10,14 @@ const subcategorySchema = new Schema(
       unique: [true, "name must be unique value"],
       lowercase: true,
     },
+
     slug: String,
+
     image: {
       type: { secure_url: String, public_id: String },
       required: [true, "Image is required"],
     },
+    
     createdBy: {
       type: Types.ObjectId,
       ref: "User",

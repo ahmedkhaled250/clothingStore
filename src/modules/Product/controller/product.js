@@ -53,8 +53,18 @@ export const createProduct = asyncHandler(async (req, res, next) => {
   let totalStock = 0
   let allSizes = []
   const imageIds = []
+  const colorNames = []
+  const colorCodes = []
 
   const processedColors = await Promise.all(colors.map(async (colorItem) => {
+
+    if (colorNames.includes(colorItem.name) || colorCodes.includes(colorItem.code)) {
+      return next(new Error("Don't repeat the colors"))
+    }
+
+    colorNames.push(colorItem.name)
+    colorCodes.push(colorItem.code)
+
     // Get main image for this color
     const mainImageFile = req.files.find(file => file.fieldname == `mainImage[${colors.indexOf(colorItem)}]`)
 
@@ -140,36 +150,43 @@ export const createProduct = asyncHandler(async (req, res, next) => {
   return res.status(201).json({ message: "Done", product });
 });
 
+// test 
 export const updateProduct = asyncHandler(async (req, res, next) => {
-  const { user } = req;
-  const { id } = req.params;
+  const { user } = req
+  const { id } = req.params
   const {
     price,
     discount,
-    replaceImages,
-    imageId,
+    // replaceImages,
+    // imageId,
     categoryId,
     subcategoryId,
     brandId,
-    colors
+    colors,
+    // stock
   } = req.body;
+
+  if (!colors && req.files.length) {
+    return next(new Error("You must send a specefic color id whith images", { cause: 400 }))
+  }
 
   if (user.deleted) {
     return next(new Error("Your account is stopped", { cause: 400 }));
   }
 
+  const populate = [
+    {
+      path: "colors",
+      select: "-createdAt -updatedAt",
+    },
+  ];
 
-
-  const product = await findOne({
-    model: productModel,
-    condition: { _id: id },
-  });
-
+  const product = await findOne({ model: productModel, condition: { _id: id }, populate })
   if (!product) {
-    return next(new Error("In-valid product", { cause: 404 }));
+    return next(new Error("In-valid product", { cause: 404 }))
   }
 
-  // name
+
   if (req.body.name) {
     req.body.name = req.body.name.toLowerCase();
     req.body.slug = slugify(req.body.name, {
@@ -180,282 +197,263 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
   }
 
 
-
-
+  let totalStock = 0
   const imageIds = []
+  const oldImageIds = []
+  const colorNames = []
+  const colorCodes = []
+
+  async function updateColorsWithSpecificSizes(colorDataArray) {
+    const bulkOps = [];
+
+    colorDataArray.forEach(colorItem => {
+      // First update the main color properties and increment total stock
+      bulkOps.push({
+        updateOne: {
+          filter: { _id: colorItem.id },
+          update: {
+            $set: {
+              ...(colorItem.name && { name: colorItem.name }),
+              ...(colorItem.code && { code: colorItem.code }),
+              ...(colorItem.mainImage?.secure_url && { mainImage: colorItem.mainImage }),
+              ...(colorItem.images?.length && { images: colorItem.images }),
+            },
+            $inc: {
+              stock: colorItem.stock,
+              totalAmount: colorItem.stock
+            }
+          }
+        }
+      });
+
+      // Then increment stock for each size individually
+      colorItem.sizes.forEach(size => {
+        bulkOps.push({
+          updateOne: {
+            filter: {
+              _id: colorItem.id,
+              "sizes._id": size._id
+            },
+            update: {
+              $inc: {
+                "sizes.$.stock": parseInt(size.stock) || 0,
+                "sizes.$.totalAmount": parseInt(size.stock) || 0
+              }
+            }
+          }
+        });
+      });
+    });
+
+    const result = await colorModel.bulkWrite(bulkOps, { ordered: false });
+    return result;
+  }
 
   if (colors) {
     const processedColors = await Promise.all(colors.map(async (colorItem) => {
-      console.log(colorItem);
-      // // Get main image for this color
-      // const mainImageFile = req.files.find(file => file.fieldname == `mainImage[${colors.indexOf(colorItem)}]`)
+      let checkError = false
 
-      // const { secure_url, public_id } = await cloudinary.uploader.upload(
-      //   mainImageFile.path,
-      //   {
-      //     folder: `${process.env.PROJECTNAME}/product/${req.body.cloudId}/${colorItem.name}/mainImage`,
-      //   }
-      // );
-      // imageIds.push(public_id)
-      // const mainImage = { secure_url, public_id }
-      // // Get additional images for this color
-      // const colorImages = req.files.filter(file => file.fieldname == `images[${colors.indexOf(colorItem)}]`)
+      if (colorItem.name) {
+        if (colorNames.includes(colorItem.name)) {
+          return next(new Error("Don't repeat the colors", { cause: 400 }))
+        }
+        if (product.colors.find(color => color.name == colorItem.name)) {
+          return next(new Error(`this color name (${colorItem.name}) is already exist`, { cause: 400 }))
+        }
+        colorNames.push(colorItem.name)
+      }
+      if (colorItem.code) {
+        if (colorCodes.includes(colorItem.code)) {
+          return next(new Error("Don't repeat the colors", { cause: 400 }))
+        }
+        if (product.colors.find(color => color.code == colorItem.code)) {
+          return next(new Error(`this color code (${colorItem.code}) is already exist`, { cause: 400 }))
+        }
+        colorCodes.push(colorItem.code)
+      }
+
+      const color = product.colors.find(color => color._id == colorItem._id)
 
 
-      // const images = [];
-      // for (const file of colorImages) {
-      //   const { secure_url, public_id } = await cloudinary.uploader.upload(
-      //     file.path,
-      //     {
-      //       folder: `${process.env.PROJECTNAME}/product/${req.body.cloudId}/${colorItem.name}/images`,
-      //     }
-      //   );
-      //   imageIds.push(public_id)
-      //   images.push({ secure_url, public_id });
-      // }
 
-      // return {
-      //   name: colorItem.name,
-      //   sizes: colorItem.sizes.map(item => {
-      //     totalStock += parseInt(item.stock)
-      //     if (!allSizes.includes(item.size.toLowerCase())) allSizes.push(item.size.toLowerCase())
-      //     return {
-      //       size: item.size.toLowerCase(),
-      //       stock: parseInt(item.stock),
-      //       totalAmount: parseInt(item.stock)
-      //     }
-      //   }),
-      //   mainImage: mainImage,
-      //   images: images
-      // };
+      let totalColorStock = 0
+      if (colorItem.sizes?.length) {
+        colorItem.sizes.forEach(async item => {
+          const size = color.sizes.find(size => size._id == item._id)
+
+          if (parseInt(size.stock) + parseInt(item.stock) < 0) {
+            if (imageIds.length) {
+              for (const id of imageIds) {
+                await cloudinary.uploader.destroy(id);
+              }
+            }
+            checkError = true
+            return next(new Error(`there is no stock to remove in this size (${size.size}) which in this color (${color.name})`, { cause: 400 }))
+          }
+          totalStock += parseInt(item.stock)
+          totalColorStock += parseInt(item.stock)
+        })
+      }
+
+      if (checkError) {
+        return 0
+      }
+
+      // Get main image for this color
+      const mainImageFile = req.files.find(file => file.fieldname == `mainImage[${colors.indexOf(colorItem)}]`)
+
+      let mainImage
+      if (mainImageFile) {
+        const { secure_url, public_id } = await cloudinary.uploader.upload(
+          mainImageFile.path,
+          {
+            folder: `${process.env.PROJECTNAME}/product/${product.cloudId}/${colorItem.name}/mainImage`,
+          }
+        );
+        imageIds.push(public_id)
+        mainImage = { secure_url, public_id }
+        oldImageIds.push(color.mainImage.public_id)
+      }
+
+      // Get additional images for this color
+      const colorImages = req.files.filter(file => file.fieldname == `images[${colors.indexOf(colorItem)}]`)
+
+      const images = [];
+      if (colorImages?.length) {
+        for (const file of colorImages) {
+          const { secure_url, public_id } = await cloudinary.uploader.upload(
+            file.path,
+            {
+              folder: `${process.env.PROJECTNAME}/product/${product.cloudId}/${colorItem.name || color.name}/images`,
+            }
+          );
+          imageIds.push(public_id)
+          images.push({ secure_url, public_id });
+        }
+        for (const image of color.images) {
+          oldImageIds.push(image.public_id)
+        }
+      }
+
+      return {
+        id: colorItem._id,
+        ...(colorItem.name && { name: colorItem.name }),
+        ...(colorItem.code && { code: colorItem.code }),
+        sizes: colorItem.sizes?.length ? colorItem.sizes : [],
+        stock: totalColorStock,
+        ...(mainImage?.secure_url && { mainImage }),
+        ...(images?.length && { images }),
+      };
     }));
-    return res.status(200).json({ message: "Done", colors });
+
+    await updateColorsWithSpecificSizes(processedColors)
   }
 
 
+  if (price && discount) {
+    req.body.finalPrice = Number.parseFloat(
+      price - price * (discount / 100)
+    ).toFixed(2);
+  } else if (price) {
+    req.body.finalPrice = Number.parseFloat(
+      price - price * (product.discount / 100)
+    ).toFixed(2);
+  } else if (discount) {
+    req.body.finalPrice = Number.parseFloat(
+      product.price - product.price * (discount / 100)
+    ).toFixed(2);
+  }
 
-
-  // colors
-
-  // let finalColors
-  // if (colors) {
-  //   finalColors = colors.map(colorItem => {
-  //     return {
-  //       ...colorItem
-  //     }
-  //   })
-  // }
-
-
-
-  // if (stock) {
-  //   req.body.stock = Number(req.body.stock) + Number(product.stock)
-  //   req.body.totalAmount = Number(req.body.stock) + Number(product.soldItems)
-  //   if (product.wishUserList.length) {
-  //     for (const id of product.wishUserList) {
-  //       const user = await findById({
-  //         model: userModel,
-  //         condition: id,
-  //         select: "userName email",
-  //       });
-  //       if (user?.status != "blocked") {
-  //         const link = `${req.protocol}://${req.headers.host}/product/${product.id}`;
-  //         const message = `
-  //           <p>
-  //           Hello ${user.userName} <br>
-  //           There was a product you tried to buy it but there wasn't the quantity that you wanted <br>
-  //           There are some products of this product have added into the stock <br>
-  //           The product name is ${product.name}, <br>
-  //           The product image is ${product.images[0].secure_url} <br>
-  //           <a href="${link}">Click here to go for this product </a>
-  //           </p>
-  //           `;
-  //         const info = await sendEmail({
-  //           to: user.email,
-  //           subject: "favorite product",
-  //           message,
-  //         });
-  //         if (info) {
-  //           const index = product.wishUserList.indexOf(id);
-  //           product.wishUserList.splice(index, 1);
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
-
-  req.body.wishUserList = product.wishUserList;
-
-  // price
-  // if (price && discount) {
-  //   req.body.finalPrice = Number.parseFloat(
-  //     price - price * (discount / 100)
-  //   ).toFixed(2);
-  // } else if (price) {
-  //   req.body.finalPrice = Number.parseFloat(
-  //     price - price * (product.discount / 100)
-  //   ).toFixed(2);
-  // } else if (discount) {
-  //   req.body.finalPrice = Number.parseFloat(
-  //     product.price - product.price * (discount / 100)
-  //   ).toFixed(2);
-  // }
-
-
-  // const imagesIdsUplaoded = [];
-  // if (replaceImages) {
-  //   if (req.files?.length) {
-  //     const images = [];
-  //     for (const file of req.files) {
-  //       const { secure_url, public_id } = await cloudinary.uploader.upload(
-  //         file.path,
-  //         {
-  //           folder: `${process.env.PROJECTNAME}/product/${product.cloudId}/images`,
-  //         }
-  //       );
-  //       images.push({ secure_url, public_id });
-  //     }
-  //     req.body.images = images;
-  //   }
-  // } else {
-  //   if (imageId) {
-  //     const length = product.images.length;
-  //     for (const image of product.images) {
-  //       if (imageId == image.public_id.toString()) {
-  //         const indexOfImage = product.images.indexOf(image);
-  //         product.images.splice(indexOfImage, 1);
-  //         req.body.images = product.images;
-  //         break;
-  //       }
-  //     }
-  //     if (length - product.images.length != 1) {
-  //       return next(
-  //         new Error("This image is not defined in those product images", {
-  //           cause: 400,
-  //         })
-  //       );
-  //     }
-  //     if (req.files?.length) {
-  //       if (req.body.images.length + req.files.length <= 5) {
-  //         for (const file of req.files) {
-  //           const { secure_url, public_id } = await cloudinary.uploader.upload(
-  //             file.path,
-  //             {
-  //               folder: `${process.env.PROJECTNAME}/product/${product.cloudId}/images`,
-  //             }
-  //           );
-  //           imagesIdsUplaoded.push(public_id);
-  //           req.body.images.push({ secure_url, public_id });
-  //         }
-  //       } else {
-  //         return next(
-  //           new Error("You cannot add more 5 photos", { cause: 400 })
-  //         );
-  //       }
-  //     }
-  //   } else {
-  //     if (req.files?.length) {
-  //       if (product.images.length + req.files.length <= 5) {
-  //         for (const file of req.files) {
-  //           const { secure_url, public_id } = await cloudinary.uploader.upload(
-  //             file.path,
-  //             {
-  //               folder: `${process.env.PROJECTNAME}/product/${product.cloudId}/images`,
-  //             }
-  //           );
-  //           imagesIdsUplaoded.push(public_id);
-  //           product.images.push({ secure_url, public_id });
-  //         }
-  //         req.body.images = product.images;
-  //       } else {
-  //         return next(
-  //           new Error("You cannot add more 5 photos", { cause: 400 })
-  //         );
-  //       }
-  //     }
-  //   }
-  // }
+  req.body.updatedBy = user._id
 
   // check ids
-  // let subcategory;
-  // if (categoryId && subcategoryId) {
-  //   subcategory = await findOne({
-  //     model: subcategoryModel,
-  //     condition: { categoryId, _id: subcategoryId },
-  //   });
-  //   if (!subcategory) {
-  //     return next(
-  //       new Error("this subcategory  is not suitable for this category", {
-  //         cause: 400,
-  //       })
-  //     );
-  //   }
-  //   req.body.categoryId = categoryId;
-  //   req.body.subcategoryId = subcategoryId;
-  // } else if (subcategoryId) {
-  //   subcategory = await findOne({
-  //     model: subcategoryModel,
-  //     condition: { categoryId: product.categoryId, _id: subcategoryId },
-  //   });
-  //   if (!subcategory) {
-  //     return next(
-  //       new Error("this subcategory  is not suitable for this category", {
-  //         cause: 400,
-  //       })
-  //     );
-  //   }
-  //   req.body.subcategoryId = subcategoryId;
-  // } else if (categoryId) {
-  //   return next(
-  //     new Error("You can't change category without subcategory", { cause: 400 })
-  //   );
-  // }
-  // if (brandId) {
-  //   const brand = await findById({ model: brandModel, condition: brandId });
-  //   if (!brand) {
-  //     return next(
-  //       new Error("In-valid brandId", {
-  //         cause: 404,
-  //       })
-  //     );
-  //   }
-  //   req.body.brandId = brandId;
-  // }
+  let subcategory;
+  if (categoryId && subcategoryId) {
+    subcategory = await findOne({
+      model: subcategoryModel,
+      condition: { categoryId, _id: subcategoryId },
+    });
+    if (!subcategory) {
+      return next(
+        new Error("this subcategory  is not suitable for this category", {
+          cause: 400,
+        })
+      );
+    }
+    req.body.categoryId = categoryId;
+    req.body.subcategoryId = subcategoryId;
+  } else if (subcategoryId) {
+    subcategory = await findOne({
+      model: subcategoryModel,
+      condition: { categoryId: product.categoryId, _id: subcategoryId },
+    });
+    if (!subcategory) {
+      return next(
+        new Error("this subcategory  is not suitable for this category", {
+          cause: 400,
+        })
+      );
+    }
+    req.body.subcategoryId = subcategoryId;
+  } else if (categoryId) {
+    return next(
+      new Error("You can't change category without subcategory", { cause: 400 })
+    );
+  }
+  if (brandId) {
+    const brand = await findById({ model: brandModel, condition: brandId });
+    if (!brand) {
+      return next(
+        new Error("In-valid brandId", {
+          cause: 404,
+        })
+      );
+    }
+    req.body.brandId = brandId;
+  }
+  console.log(parseInt(totalStock));
+
+  const updateProduct = await findOneAndUpdate({
+    model: productModel,
+    condition: { _id: id },
+    data: { ...req.body, $inc: { totalAmount: parseInt(totalStock), totalStock: parseInt(totalStock) } },
+  });
 
 
-  // const updateProduct = await findOneAndUpdate({
-  //   model: productModel,
-  //   condition: { _id: id, createdBy: user._id },
-  //   data: req.body,
-  // });
 
 
-  // if (!updateProduct) {
-  //   if (req.files?.length) {
-  //     if (replaceImages) {
-  //       for (const image of req.body.images) {
-  //         await cloudinary.uploader.destroy(image.public_id);
-  //       }
-  //     } else {
-  //       for (const id of imagesIdsUplaoded) {
-  //         await cloudinary.uploader.destroy(id);
-  //       }
-  //     }
-  //   }
-  //   return next(new Error("Fail to update product", { cause: 400 }));
-  // }
+  if (!updateProduct) {
+    if (imageIds.length) {
+      // if (replaceImages) {
+      //   for (const image of req.body.images) {
+      //     await cloudinary.uploader.destroy(image.public_id);
+      //   }
+      // } else {
+      //   for (const id of imagesIdsUplaoded) {
+      //     await cloudinary.uploader.destroy(id);
+      //   }
+      // }
+      for (const id of imageIds) {
+        await cloudinary.uploader.destroy(id);
+      }
+    }
+    return next(new Error("Fail to update product", { cause: 400 }));
+  }
+
   // if (imageId) {
   //   await cloudinary.uploader.destroy(imageId);
   // }
-  // if (req.files?.length) {
-  //   if (replaceImages) {
-  //     for (const image of product.images) {
-  //       await cloudinary.uploader.destroy(image.public_id);
-  //     }
-  //   }
-  // }
+
+
+  if (oldImageIds.length) {
+    for (const id of oldImageIds) {
+      await cloudinary.uploader.destroy(id);
+    }
+  }
   return res.status(200).json({ message: "Done" });
-});
+
+})
+
 export const deleteProduct = asyncHandler(async (req, res, next) => {
   const { user } = req;
   const { id } = req.params;
@@ -501,7 +499,7 @@ export const softDeleteProduct = asyncHandler(async (req, res, next) => {
   }
   const product = await findOne({
     model: productModel,
-    condition: { _id: id, createdBy: user._id },
+    condition: { _id: id },
   });
   if (!product) {
     return next(new Error("In-valid product", { cause: 404 }));
@@ -871,7 +869,7 @@ export const productsOfSpecificCategory = asyncHandler(
 
     let filter = {
       deleted: false,
-      categoryDeleted: false, subcategoryDeleted: false, brandDeleted: false, 
+      categoryDeleted: false, subcategoryDeleted: false, brandDeleted: false,
       categoryId
     };
     if ((req.query.productSize || req.query.productSize?.length) && !req.query.colorCode) {

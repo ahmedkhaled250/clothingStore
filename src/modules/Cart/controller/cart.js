@@ -12,6 +12,7 @@ import {
 import cartModel from "../../../../DB/models/Cart.js";
 import productModel from "../../../../DB/models/Product.js";
 import productCartModel from "../../../../DB/models/ProductsOfCart.js";
+import couponModel from "../../../../DB/models/Coupon.js";
 
 export const addtoCart = asyncHandler(async (req, res, next) => {
   const { user } = req;

@@ -1,7 +1,6 @@
 import { roles } from "../../middleware/auth.js";
 
 const endPoint = {
-    add : [roles.User],
-    remove : [roles.User]
+    user : [roles.User]
 }
 export default endPoint

@@ -7,6 +7,7 @@ import productRouter from "./Product/product.router.js";
 import orderRouter from "./order/order.router.js";
 import cartRouter from "./Cart/cart.router.js";
 import couponRouter from "./Coupon/coupon.router.js";
+import wishlistRouter from "./wishList/wishList.router.js";
 import morgan from "morgan";
 import { globalError } from "../utils/errorHandling.js";
 import cors from "cors";
@@ -39,6 +40,7 @@ const bootstrap = (app, express) => {
   app.use(`/cart`, cartRouter);
   app.use(`/order`, orderRouter);
   app.use(`/coupon`, couponRouter);
+  app.use(`/wishlist`, wishlistRouter);
   app.use("*", (req, res) => {
     res.status(404).json({ message: "In-valid routing" });
   });

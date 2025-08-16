@@ -101,11 +101,11 @@ export const IdAndHeaders = joi
     authorization: generalFields.headers,
   })
   .required();
-// export const Headers = joi
-//   .object({
-//     authorization: joi.string().required(),
-//   })
-//   .required();
+export const token = joi
+  .object({
+    authorization: generalFields.headers,
+  })
+  .required();
 export const products = joi
   .object({
     ...validateQuery,

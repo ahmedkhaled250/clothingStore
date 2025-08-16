@@ -96,8 +96,9 @@ const productSchema = new Schema(
     },
     rating: {
       type: Number,
-      min: [1, "minimum rating 1"],
+      min: [0, "minimum rating 0"],
       max: [5, "maximum rating 5"],
+      default: 0
     },
     numOfReviews: {
       type: Number,

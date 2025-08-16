@@ -24,7 +24,7 @@ export const auth = (accessRoles = []) => {
     const user = await findById({
       model: userModel,
       condition: decoded.id,
-      select: "-password",
+      select: "-password -recievedProduct",
     });
     if (!user) {
       return next(new Error("In-valid user", { cause: 404 }));

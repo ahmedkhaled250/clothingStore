@@ -582,9 +582,18 @@ export const products = async (req, res, next) => {
     .search()
     .select();
   const products = await apiFeature.mongooseQuery;
+  let searchQuery
+  if (req.query.search) {
+    searchQuery = {
+      $or: [
+        { name: { $regex: req.query.search, $options: "i" } },
+        { description: { $regex: req.query.search, $options: "i" } },
+      ],
+    }
+  }
   const total = await countDocuments({
     model: productModel,
-    condition: filter,
+    condition: { ...filter, ...(searchQuery && searchQuery) },
   });
   if (!total) {
     return next(new Error("In-valid products", { cause: 404 }));
@@ -920,5 +929,14 @@ export const productsOfSpecificCategory = asyncHandler(
       return next(new Error("In-valid products", { cause: 404 }));
     }
     return res.status(200).json({ message: "Done", products, total });
+  }
+);
+export const recievedProducts = asyncHandler(
+  async (req, res, next) => {
+    const { user } = req
+
+    const products = await findById({ model: userModel, condition: user._id, select: "recievedProduct -_id" })
+
+    return res.status(200).json({ message: "Done", ...products.toObject() });
   }
 );

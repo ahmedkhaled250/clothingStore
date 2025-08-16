@@ -25,7 +25,7 @@ const productCartSchema = new Schema(
     size: {
       type: String,
       enum: ["ss", "s", "m", "l", "xl", "xxl", "xxxl", ""],
-      required: [true, "Color code is required"]
+      required: [true, "Size is required"]
     },
     quantity: Number,
     totalPrice: Number,

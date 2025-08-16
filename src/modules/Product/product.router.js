@@ -54,6 +54,12 @@ router.get(
   auth(endPoint.product),
   productController.MyProducts
 );
+router.get(
+  "/recievedProducts",
+  validation(validators.token),
+  auth(endPoint.recievedProducts),
+  productController.recievedProducts
+);
 
 router.get(
   "/productsOfSpecificSubcategory",

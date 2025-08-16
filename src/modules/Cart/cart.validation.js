@@ -6,7 +6,7 @@ export const addtoCart = joi
     quantity: joi.number().min(1).required(),
     colorCode: joi.string().required(),
     couponName: joi.string(),
-    size: joi.number().allow("ss", "s", "m", "l", "xl", "xxl", "xxxl", "").required(),
+    size: joi.string().allow("ss", "s", "m", "l", "xl", "xxl", "xxxl", "").required(),
     authorization: generalFields.headers,
   })
   .required()
@@ -15,7 +15,7 @@ export const deleteFromCart = joi
     productId: generalFields.id,
     cartId: generalFields.id,
     colorCode: joi.string().required(),
-    size: joi.number().allow("ss", "s", "m", "l", "xl", "xxl", "xxxl", "").required(),
+    size: joi.string().allow("ss", "s", "m", "l", "xl", "xxl", "xxxl", "").required(),
     authorization: generalFields.headers,
   })
   .required()

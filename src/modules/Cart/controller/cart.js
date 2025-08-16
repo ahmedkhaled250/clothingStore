@@ -28,7 +28,7 @@ export const addtoCart = asyncHandler(async (req, res, next) => {
     },
   ];
 
-  const checkProduct = await findOne({ model: productModel, condition: { _id: productId }, populate: populateCheckProduct });
+  const checkProduct = await findOne({ model: productModel, condition: { _id: productId, deleted: false }, populate: populateCheckProduct });
   if (!checkProduct) {
     return next(new Error("In-valid this product", { cause: 404 }));
   }
@@ -63,6 +63,9 @@ export const addtoCart = asyncHandler(async (req, res, next) => {
   const populate = [
     {
       path: "products",
+    },
+    {
+      path: "couponId",
     },
   ]
 
@@ -114,12 +117,22 @@ export const addtoCart = asyncHandler(async (req, res, next) => {
     });
     const product = await create({
       model: productCartModel,
-      data: { cartId: cart._id, productId, quantity, finalPrice: finalProductPrice, totalPrice: totalProductPrice, discount: (totalProductPrice - finalProductPrice), colorName: checkColor.name, colorCode, size },
+      data: {
+        cartId: cart._id,
+        productId,
+        quantity,
+        finalPrice: finalProductPrice,
+        totalPrice: totalProductPrice,
+        discount: (totalProductPrice - finalProductPrice).toFixed(2),
+        colorName: checkColor.name,
+        colorCode,
+        size
+      },
     });
     cart.products = [product._id]
     cart.finalPrice = finalProductPrice
     cart.totalPrice = totalProductPrice
-    cart.discount = (totalProductPrice - finalProductPrice)
+    cart.discount = (totalProductPrice - finalProductPrice).toFixed(2)
     if (req.body.coupon) {
       cart.priceAfterCoupon = Number.parseFloat(finalProductPrice - finalProductPrice * ((req.body.coupon.amount) / 100)).toFixed(2)
       cart.couponId = req.body.coupon._id
@@ -132,44 +145,123 @@ export const addtoCart = asyncHandler(async (req, res, next) => {
     return res.status(201).json({ message: "Done", cart: getCart });
   }
 
-  let finalPrice = +findCart.finalPrice?.toFixed(2) || 0
-  let totalPrice = +findCart.totalPrice?.toFixed(2) || 0
 
-
-  let match = false;
-
-  for (let i = 0; i < findCart.products.length; i++) {
-    if (findCart.products[i].productId.toString() == productId && findCart.products.find(item => item.colorCode == colorCode.toLowerCase()) && findCart.products.find(item => item.size == size.toLowerCase())) {
-
-      finalPrice = finalPrice - findCart.products.find(item => item.colorCode == colorCode.toLowerCase()).finalPrice;
-      totalPrice = totalPrice - findCart.products.find(item => item.colorCode == colorCode.toLowerCase()).totalPrice;
-      await updateOne({ model: productCartModel, condition: { productId, cartId: findCart._id, colorCode: colorCode.toLowerCase(), size: size.toLowerCase() }, data: { quantity, finalPrice: finalProductPrice, totalPrice: totalProductPrice } })
-
-      finalPrice = finalPrice + +finalProductPrice
-      totalPrice = totalPrice + +totalProductPrice
-
-
-      let priceAfterCoupon = Number.parseFloat(finalPrice - finalPrice * ((req.body.coupon?.amount || 0) / 100)).toFixed(2)
-
-
-      findCart = await findOneAndUpdate({
-        model: cartModel, condition: { _id: findCart._id }, data: {
-          ...(req.body.coupon?._id && { couponId: req.body.coupon._id }),
-          priceAfterCoupon, totalPrice, finalPrice, discount: (totalPrice - finalPrice)
-        }, option: { new: true }, populate: populateCart
-      })
-      match = true;
-      break;
-    }
+  if (!req.body.coupon && findCart.couponId) {
+    req.body.coupon = findCart.couponId
   }
-  // push new product into cart
-  if (!match) {
-    const newProduct = await create({ model: productCartModel, data: { productId, quantity, cartId: findCart._id, colorCode, size, finalPrice: finalProductPrice, discount: (totalProductPrice - finalProductPrice), totalPrice: totalProductPrice, colorName: checkColor.name } })
-    console.log({ newProduct });
 
-    finalPrice = +finalPrice + +finalProductPrice
-    totalPrice = +totalPrice + +totalProductPrice
-    findCart = await findOneAndUpdate({ model: cartModel, condition: { _id: findCart._id }, data: { $addToSet: { products: newProduct._id }, totalPrice, finalPrice, discount: (totalPrice - finalPrice) }, option: { new: true }, populate: populateCart })
+
+  let finalPrice = +findCart.finalPrice || 0
+  let totalPrice = +findCart.totalPrice || 0
+
+
+
+  if (findCart.products?.length) {
+    for (let i = 0; i < findCart.products.length; i++) {
+      if (
+        findCart.products[i].productId.toString() == productId &&
+        findCart.products[i].colorCode == colorCode.toLowerCase() &&
+        findCart.products[i].size == size.toLowerCase()
+        // && findCart.products.find(item => item.colorCode == colorCode.toLowerCase())
+        // && findCart.products.find(item => item.size == size.toLowerCase())
+      ) {
+
+        // finalPrice = finalPrice - findCart.products.find(item => item.colorCode == colorCode.toLowerCase()).finalPrice;
+        totalPrice = totalPrice - findCart.products.find(
+          item => item.colorCode == colorCode.toLowerCase() &&
+            item.productId.toString() == productId &&
+            item.size == size.toLowerCase()).totalPrice;
+
+        finalPrice = finalPrice - findCart.products.find(
+          item => item.colorCode == colorCode.toLowerCase() &&
+            item.productId.toString() == productId &&
+            item.size == size.toLowerCase()).finalPrice;
+
+        await updateOne({
+          model: productCartModel,
+          condition: {
+            productId,
+            cartId: findCart._id,
+            colorCode: colorCode.toLowerCase(),
+            size: size.toLowerCase()
+          }, data: {
+            quantity,
+            finalPrice: finalProductPrice,
+            discount: (totalProductPrice - finalProductPrice).toFixed(2),
+            totalPrice: totalProductPrice
+          }
+        })
+
+        finalPrice += +finalProductPrice
+        totalPrice += +totalProductPrice
+        let priceAfterCoupon
+        if (req.body.coupon) {
+          priceAfterCoupon = Number.parseFloat(finalPrice - finalPrice * ((req.body.coupon.amount) / 100)).toFixed(2)
+        } else {
+          priceAfterCoupon = finalPrice
+        }
+
+
+        findCart = await findOneAndUpdate({
+          model: cartModel,
+          condition: {
+            _id: findCart._id
+          },
+          data: {
+            ...(req.body.coupon?._id && { couponId: req.body.coupon._id }),
+            priceAfterCoupon,
+            totalPrice,
+            finalPrice,
+            discount: (totalPrice - finalPrice).toFixed(2)
+          },
+          option: {
+            new: true
+          },
+          populate: populateCart
+        })
+        break;
+      }
+    }
+  } else {
+    const newProduct = await create({
+      model: productCartModel,
+      data: {
+        productId,
+        quantity,
+        cartId: findCart._id,
+        colorCode,
+        size,
+        finalPrice: finalProductPrice,
+        discount: (totalProductPrice - finalProductPrice),
+        totalPrice: totalProductPrice,
+        colorName: checkColor.name
+      }
+    })
+
+    finalPrice += +finalProductPrice
+    totalPrice += +totalProductPrice
+    let priceAfterCoupon
+    if (req.body.coupon) {
+      priceAfterCoupon = Number.parseFloat(finalPrice - finalPrice * ((req.body.coupon.amount) / 100)).toFixed(2)
+    } else {
+      priceAfterCoupon = finalPrice
+    }
+    findCart = await findOneAndUpdate({
+      model: cartModel,
+      condition: {
+        _id: findCart._id
+      },
+      data: {
+        ...(req.body.coupon?._id && { couponId: req.body.coupon._id }),
+        priceAfterCoupon,
+        $addToSet: { products: newProduct._id },
+        totalPrice,
+        finalPrice,
+        discount: (totalPrice - finalPrice).toFixed(2)
+      },
+      option: { new: true },
+      populate: populateCart
+    })
   }
 
   return res.status(200).json({ message: "Done", cart: findCart });
@@ -183,6 +275,7 @@ export const deleteFromCart = asyncHandler(async (req, res, next) => {
   if (user.deleted) {
     return next(new Error("Your account is deleted", { cause: 400 }));
   }
+
   const populate = [
     {
       path: "products",
@@ -199,9 +292,12 @@ export const deleteFromCart = asyncHandler(async (req, res, next) => {
   if (!cart) {
     return next(new Error("You didn't add any product to your cart before", { cause: 404 }));
   }
-  let finalPrice;
-  let totalPrice;
-  let match = false;
+  if (!cart.products?.length) {
+    return next(new Error("There is no product in cart", { cause: 400 }));
+
+  }
+  let finalPrice = 0;
+  let totalPrice = 0;
   const populateCart = [
     {
       path: "userId",
@@ -219,34 +315,71 @@ export const deleteFromCart = asyncHandler(async (req, res, next) => {
       }
     },
   ];
-  for (let i = 0; i < cart.products.length; i++) {
 
-
-    if (cart.products[i].productId.toString() == productId && cart.products[i].colorCode.toString() == colorCode.toLowerCase() && cart.products[i].size.toString() == size.toLowerCase()) {
-      const deleteProduct = await findOneAndDelete({ model: productCartModel, condition: { productId, cartId: cart._id, colorCode: colorCode.toLowerCase(), size: size.toLowerCase() } })
-      finalPrice = +cart.finalPrice - +deleteProduct.finalPrice
-      totalPrice = +cart.totalPrice - +deleteProduct.totalPrice
-      let priceAfterCoupon
-      if (cart.couponId) {
-        priceAfterCoupon =
-          priceAfterCoupon = Number.parseFloat(finalPrice - finalPrice * ((req.body.coupon.amount) / 100)).toFixed(2)
-      } else {
-        priceAfterCoupon = finalPrice.toFixed(2)
-      }
-      cart = await findOneAndUpdate({
-        model: cartModel, condition: { _id: cart._id }, data: { $pull: { products: deleteProduct._id }, priceAfterCoupon, finalPrice: finalPrice.toFixed(2), totalPrice: totalPrice.toFixed(2), discount: (finalPrice.toFixed(2) - totalPrice.toFixed(2)) },
-        option: { new: true },
-        populate: populateCart
-      })
-      match = true;
-      break;
-    }
-  }
-  if (match == false) {
+  const checkProduct = cart.products.find(product => product.productId.toString() == productId)
+  if (!(checkProduct.productId.toString() == productId
+    && checkProduct.colorCode.toString() == colorCode.toLowerCase() &&
+    checkProduct.size.toString() == size.toLowerCase())) {
     return next(
       new Error("In-valid this product with this color and this size in your cart", { cause: 400 })
     );
   }
+  // console.log(checkProduct);
+
+  if (cart.products?.length == 1 && checkProduct) {
+    await findOneAndDelete({ model: productCartModel, condition: { productId, cartId: cart._id, colorCode: colorCode.toLowerCase(), size: size.toLowerCase() } })
+    cart = await findOneAndUpdate({
+      model: cartModel,
+      condition: { _id: cart._id },
+      data: {
+        products: [],
+        priceAfterCoupon: 0,
+        finalPrice,
+        totalPrice,
+        discount: 0
+      },
+      option: { new: true },
+      populate: populateCart
+    })
+  } else {
+    for (let i = 0; i < cart.products.length; i++) {
+      // console.log(cart.products[i].colorCode.toString());
+
+      // console.log(cart.products[i].productId.toString() == productId &&
+      //   cart.products[i].colorCode.toString() == colorCode.toLowerCase());
+
+      if (
+        cart.products[i].productId.toString() == productId
+        && cart.products[i].colorCode.toString() == colorCode.toLowerCase() && cart.products[i].size.toString() == size.toLowerCase()) {
+        console.log("dddddd");
+
+        const deleteProduct = await findOneAndDelete({ model: productCartModel, condition: { productId, cartId: cart._id, colorCode: colorCode.toLowerCase(), size: size.toLowerCase() } })
+        finalPrice = +cart.finalPrice - +deleteProduct.finalPrice
+        totalPrice = +cart.totalPrice - +deleteProduct.totalPrice
+        let priceAfterCoupon
+        if (cart.couponId) {
+          priceAfterCoupon = Number.parseFloat(finalPrice - finalPrice * ((cart.couponId.amount) / 100)).toFixed(2)
+        } else {
+          priceAfterCoupon = finalPrice
+        }
+        cart = await findOneAndUpdate({
+          model: cartModel,
+          condition: { _id: cart._id },
+          data: {
+            $pull: { products: deleteProduct._id },
+            priceAfterCoupon,
+            finalPrice: finalPrice.toFixed(2),
+            totalPrice: totalPrice.toFixed(2),
+            discount: (totalPrice - finalPrice).toFixed(2)
+          },
+          option: { new: true },
+          populate: populateCart
+        })
+        break;
+      }
+    }
+  }
+
   return res.status(200).json({ message: "Done", cart });
 });
 

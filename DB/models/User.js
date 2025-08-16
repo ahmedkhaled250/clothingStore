@@ -59,7 +59,7 @@ const userSchema = new Schema(
     image: {
       type: { secure_url: String, public_id: String },
     },
-    wishList: { type: [Types.ObjectId], ref: "Product" },
+    recievedProduct: { type: [Types.ObjectId], ref: "Product" },
   },
   {
     timestamps: true,

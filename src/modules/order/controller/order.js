@@ -24,6 +24,7 @@ import payment from "../../../utils/payment.js";
 import productCartModel from "../../../../DB/models/ProductsOfCart.js";
 import colorModel from "../../../../DB/models/Colors.js";
 import { populate } from "dotenv";
+import userModel from "../../../../DB/models/User.js";
 // import { createInvoice } from "../../../utils/pdf.js";
 export const addOrder = asyncHandler(async (req, res, next) => {
   const { user } = req;
@@ -31,7 +32,22 @@ export const addOrder = asyncHandler(async (req, res, next) => {
   if (user.deleted) {
     return next(new Error("Your account is deleted", { cause: 400 }));
   }
-  let checkCoupon
+
+
+  if (couponName) {
+    // if (checkCoupon) {
+    //   return next(new Error("You cannot add coupon and there's in your cart another one", { cause: 400 }))
+    // }
+    const coupon = await findOne({
+      model: couponModel,
+      condition: { name: couponName.toLowerCase(), usedBy: { $nin: user._id } },
+    });
+    if (!coupon || coupon.expireDate.getTime() < Date.now()) {
+      return next(new Error("In-valid or expired coupon", { cause: 404 }));
+    }
+    req.body.coupon = coupon;
+  }
+
   if (!req.body.products) {
     const populate = [
       {
@@ -49,12 +65,12 @@ export const addOrder = asyncHandler(async (req, res, next) => {
       populate
     });
 
-    if (!cart?.products.length) {
+    if (!cart?.products?.length) {
       return next(new Error("Your cart is empty", { cause: 400 }));
     }
 
 
-    if (cart.couponId) {
+    if (!req.body.coupon && cart.couponId) {
       if (cart.couponId.expireDate.getTime() < Date.now()) {
         return next(new Error("In-valid or expired coupon", { cause: 404 }));
       }
@@ -65,25 +81,12 @@ export const addOrder = asyncHandler(async (req, res, next) => {
     req.body.isCart = true;
     req.body.products = cart.products;
   }
-  if (couponName) {
-    if (checkCoupon) {
-      return next(new Error("You cannot add coupon and there's in your cart another one", { cause: 400 }))
-    }
-    const coupon = await findOne({
-      model: couponModel,
-      condition: { name: couponName.toLowerCase(), usedBy: { $nin: user._id } },
-    });
-    if (!coupon || coupon.expireDate.getTime() < Date.now()) {
-      return next(new Error("In-valid or expired coupon", { cause: 404 }));
-    }
-    req.body.coupon = coupon;
-  }
+
   let subtotalPrice = 0;
   const finalProducts = [];
   const productsList = [];
   const colorsList = [];
   for (let product of req.body.products) {
-
     const exists = productsList.some(
       (item) => item.id == product.productId &&
         item.colorCode == product.colorCode.toLowerCase() &&
@@ -116,7 +119,8 @@ export const addOrder = asyncHandler(async (req, res, next) => {
       );
     }
 
-    const checkColor = checkProduct.colors.find((color) => color.code == product.colorCode.toLowerCase() && color.stock >= product.quantity)
+    const checkColor = checkProduct.colors.find(
+      (color) => color.code == product.colorCode.toLowerCase() && color.stock >= product.quantity)
 
     if (!checkColor) {
       return next(new Error(`${checkProduct.name} doesn't have that color code ${product.colorCode} or there is no stock to place this quantity in this color`, { cause: 404 }))
@@ -144,7 +148,10 @@ export const addOrder = asyncHandler(async (req, res, next) => {
   }
   req.body.products = finalProducts;
   req.body.subtotalPrice = subtotalPrice;
-  couponName && (req.body.couponId = req.body.coupon?._id);
+  if (req.body.coupon) {
+    req.body.couponId = req.body.coupon?._id
+  }
+
   req.body.finalPrice =
     subtotalPrice - subtotalPrice * ((req.body.coupon?.amount || 0) / 100);
   req.body.userId = user._id;
@@ -152,77 +159,84 @@ export const addOrder = asyncHandler(async (req, res, next) => {
   req.body.date = new Date()
 
   const order = await create({ model: orderModel, data: req.body });
+
   if (!order) {
     return next(new Error("Fail to add order", { cause: 400 }));
   }
 
-
-  const productOptions = req.body.products.map(product => {
-    return ({
-      updateOne: {
-        "filter": {
-          _id: product.productId
-        },
-        "update": {
-          $inc: {
-            soldItems: parseInt(product.quantity),
-            totalStock: -parseInt(product.quantity),
+  if (order.status == "placed") {
+    const productOptions = req.body.products.map(product => {
+      return ({
+        updateOne: {
+          "filter": {
+            _id: product.productId
+          },
+          "update": {
+            $inc: {
+              soldItems: parseInt(product.quantity),
+              totalStock: -parseInt(product.quantity),
+            }
           }
         }
-      }
+      })
     })
-  })
-  await productModel.bulkWrite(productOptions)
+    await productModel.bulkWrite(productOptions)
 
-  const colorOptions = colorsList.map(item => {
-    return ({
-      updateOne: {
-        "filter": {
-          _id: item.color._id
-        },
-        "update": {
-          $inc: {
-            soldItems: parseInt(item.quantity),
-            stock: -parseInt(item.quantity),
-            "sizes.$[sizeItem].soldItems": parseInt(item.quantity),
-            "sizes.$[sizeItem].stock": -parseInt(item.quantity)
-          }
-        },
-        arrayFilters: [
-          { "sizeItem.size": item.size }
-        ]
-      }
-    })
-  })
-  await colorModel.bulkWrite(colorOptions)
 
-  if (req.body.isCart) {
-    const cart = await findOneAndUpdate({ model: cartModel, condition: { userId: user._id }, data: { products: [], finalPrice: 0, discount: 0, totalPrice: 0 } })
-    await deleteMany({ model: productCartModel, condition: { cartId: cart._id } })
-  } else {
-    const cart = await findOne({
-      model: cartModel,
-      condition: { userId: user._id },
-    });
-
-    if (cart) {
-      for (const product of req.body.products) {
-        const productCart = await findOneAndDelete({ model: productCartModel, condition: { productId: product.productId, cartId: cart._id, colorCode: product.colorCode, size: product.size } })
-        if (productCart) {
-          cart.products.pull(productCart._id)
+    const colorOptions = colorsList.map(item => {
+      return ({
+        updateOne: {
+          "filter": {
+            _id: item.color._id
+          },
+          "update": {
+            $inc: {
+              soldItems: parseInt(item.quantity),
+              stock: -parseInt(item.quantity),
+              "sizes.$[sizeItem].soldItems": parseInt(item.quantity),
+              "sizes.$[sizeItem].stock": -parseInt(item.quantity)
+            }
+          },
+          arrayFilters: [
+            { "sizeItem.size": item.size }
+          ]
         }
-        // const cart = await updateOne({ model: cartModel, condition: { userId: user._id }, data: { $pull: { products: product.productId } } })
-      }
-      await cart.save()
+      })
+    })
+    await colorModel.bulkWrite(colorOptions)
+
+
+
+
+    if (req.body.isCart) {
+      const cart = await findOneAndUpdate({
+        model: cartModel,
+        condition: { userId: user._id },
+        data: {
+          products: [],
+          finalPrice: 0,
+          discount: 0,
+          totalPrice: 0,
+          priceAfterCoupon: 0,
+          couponId: null
+        }
+      })
+      await deleteMany({ model: productCartModel, condition: { cartId: cart._id } })
     }
+
+
+
+
+    if (req.body.coupon) {
+      await findByIdAndUpdate({
+        model: couponModel,
+        condition: req.body.couponId,
+        data: { $push: { usedBy: user._id } },
+      });
+    }
+
   }
-  if (req.body.coupon) {
-    await findByIdAndUpdate({
-      model: couponModel,
-      condition: req.body.coupon._id,
-      data: { $push: { usedBy: user._id } },
-    });
-  }
+
 
   // const invoice = {
   //   shipping: {
@@ -274,6 +288,8 @@ export const addOrder = asyncHandler(async (req, res, next) => {
             currency: "egp",
             product_data: {
               name: product.name,
+              color: product.colorCode,
+              size: product.size
             },
             unit_amount: product.unitePrice * 100,
           },
@@ -285,7 +301,6 @@ export const addOrder = asyncHandler(async (req, res, next) => {
   }
   return res.status(201).json({ message: "Done" });
 });
-
 export const cencelOrder = asyncHandler(async (req, res, next) => {
   const { user } = req;
   const { id } = req.params;
@@ -297,7 +312,7 @@ export const cencelOrder = asyncHandler(async (req, res, next) => {
   const populate = [
     {
       path: "products.productId",
-      select: "_id color",
+      select: "_id colors",
       populate: {
         path: "colors",
         select: "name code sizes stock mainImage images",
@@ -328,12 +343,11 @@ export const cencelOrder = asyncHandler(async (req, res, next) => {
   }
 
   if (
-    (order.status != "placed" && order.paymentMethod == "cash") ||
-    (order.status != "waitPayment" && order.paymentMethod == "card")
+    order.status != "waitPayment" && order.status != "cash"
   ) {
     return next(
       new Error(
-        `You can't cencel your order after it's been changed to ${order.status} and payment method is ${order.paymentMethod}`,
+        `You can't cencel your order after it's been changed to ${order.status}`,
         { cause: 400 }
       )
     );
@@ -424,20 +438,31 @@ export const updateStatus = asyncHandler(async (req, res, next) => {
     return next(new Error("Your account is deleted", { cause: 400 }));
   }
 
-
   const populate = [
     {
       path: "userId",
-      select: "userName email image",
+      select: "userName email image recievedProduct",
     },
     {
       path: "products.productId",
+      populate: {
+        path: "colors",
+        select: "name code sizes stock mainImage images",
+      }
     },
     // {
     //   path: "couponId",
     //   select: "name amount",
     // },
   ];
+
+  let order = await findOne({ model: orderModel, condition: { _id: id, userId: user._id }, populate })
+
+  if (!order) {
+    return next(new Error("In-valid order", { cause: 404 }));
+  }
+
+
 
   let finalStatus
 
@@ -457,21 +482,85 @@ export const updateStatus = asyncHandler(async (req, res, next) => {
 
     default:
       return next(new Error("You have to make the status between 1 and 4 ", { cause: 400 }))
-      break;
   }
 
-  const order = await findOneAndUpdate({
-    model: orderModel,
-    condition: { _id: id, userId: user._id },
-    data: { status: finalStatus },
-    populate,
-    option: { new: true }
-  });
-
-  if (!order) {
-    return next(new Error("In-valid order", { cause: 404 }));
+  if (finalStatus == order.status) {
+    return next(new Error("You cannot update status by the same value", { cause: 400 }))
   }
 
+  order.status = finalStatus
+
+
+  if (finalStatus == "received") {
+    order.products.forEach(product => {
+      if (!order.userId.recievedProduct.includes(product.productId._id)) {
+        order.userId.recievedProduct.push(product.productId._id)
+      }
+    });
+    await updateOne({ model: userModel, condition: { _id: order.userId._id }, data: { recievedProduct: order.userId.recievedProduct } })
+
+  } else if (finalStatus == "rejected") {
+
+    const productOptions = order.products.map(product => {
+      return ({
+        updateOne: {
+          "filter": {
+            _id: product.productId._id
+          },
+          "update": {
+            $inc: {
+              soldItems: -parseInt(product.quantity),
+              totalStock: parseInt(product.quantity),
+            }
+          }
+        }
+      })
+    })
+    await productModel.bulkWrite(productOptions)
+
+    const colors = []
+
+    for (const product of order.products) {
+      const color = product.productId.colors.find(color => color.code == product.colorCode)
+      if (color) {
+        colors.push({ id: color._id, quantity: product.quantity, size: product.size })
+      }
+    }
+
+    const colorOptions = colors.map(item => {
+      return ({
+        updateOne: {
+          "filter": {
+            _id: item.id
+          },
+          "update": {
+            $inc: {
+              soldItems: -parseInt(item.quantity),
+              stock: parseInt(item.quantity),
+              "sizes.$[sizeItem].soldItems": -parseInt(item.quantity),
+              "sizes.$[sizeItem].stock": parseInt(item.quantity)
+            }
+          },
+          arrayFilters: [
+            { "sizeItem.size": item.size }
+          ]
+        }
+      })
+    })
+    await colorModel.bulkWrite(colorOptions)
+
+
+    if (order.couponId) {
+      await updateOne({
+        model: couponModel,
+        condition: { _id: order.couponId },
+        data: { $pull: { usedBy: user._id } },
+      });
+    }
+
+  }
+
+  await order.save()
 
   return res.status(200).json({ message: "Done", order });
 
@@ -527,41 +616,130 @@ export const webhook = asyncHandler(async (req, res, next) => {
   const { orderId } = event.data.object.metadata;
 
   if (event.type != "checkout.session.completed") {
-    const order = await findByIdAndUpdate({
+    await findByIdAndUpdate({
       model: orderModel,
       condition: orderId,
       data: { status: "rejected" },
     });
 
-    const options = order.products.map(product => {
-      return ({
-        updateOne: {
-          "filter": {
-            _id: product.productId
-          },
-          "update": {
-            $inc: {
-              soldItems: -parseInt(product.quantity),
-              stock: parseInt(product.quantity),
-            }
-          }
-        }
-      })
-    })
-    await productModel.bulkWrite(options)
-    if (order.couponId) {
-      await updateOne({
-        model: couponModel,
-        condition: { _id: order.couponId },
-        data: { $pull: { usedBy: user._id } },
-      });
-    }
+    // const options = order.products.map(product => {
+    //   return ({
+    //     updateOne: {
+    //       "filter": {
+    //         _id: product.productId
+    //       },
+    //       "update": {
+    //         $inc: {
+    //           soldItems: -parseInt(product.quantity),
+    //           stock: parseInt(product.quantity),
+    //         }
+    //       }
+    //     }
+    //   })
+    // })
+    // await productModel.bulkWrite(options)
+    // if (order.couponId) {
+    //   await updateOne({
+    //     model: couponModel,
+    //     condition: { _id: order.couponId },
+    //     data: { $pull: { usedBy: user._id } },
+    //   });
+    // }
     return next(new Error("Rejected order", { cause: 400 }));
   }
-  await updateOne({
+
+  const populate = [
+    {
+      path: "products.productId",
+      select: "_id color",
+      populate: {
+        path: "colors",
+        select: "name code sizes stock mainImage images",
+      }
+    },
+  ];
+
+  const order = await findByIdAndUpdate({
     model: orderModel,
     condition: { _id: orderId },
     data: { status: "placed" },
+    populate
   });
+
+
+  const productOptions = order.products.map(product => {
+    return ({
+      updateOne: {
+        "filter": {
+          _id: product.productId
+        },
+        "update": {
+          $inc: {
+            soldItems: parseInt(product.quantity),
+            totalStock: -parseInt(product.quantity),
+          }
+        }
+      }
+    })
+  })
+  await productModel.bulkWrite(productOptions)
+
+  const colors = []
+
+  for (const product of order.products) {
+    const color = product.productId.colors.find(color => color.code == product.colorCode)
+    if (color) {
+      colors.push({ id: color._id, quantity: product.quantity, size: product.size })
+    }
+  }
+
+
+  const colorOptions = colors.map(item => {
+    return ({
+      updateOne: {
+        "filter": {
+          _id: item.id
+        },
+        "update": {
+          $inc: {
+            soldItems: parseInt(item.quantity),
+            stock: -parseInt(item.quantity),
+            "sizes.$[sizeItem].soldItems": parseInt(item.quantity),
+            "sizes.$[sizeItem].stock": -parseInt(item.quantity)
+          }
+        },
+        arrayFilters: [
+          { "sizeItem.size": item.size }
+        ]
+      }
+    })
+  })
+  await colorModel.bulkWrite(colorOptions)
+
+
+
+  if (order.isCart) {
+    const cart = await findOneAndUpdate({
+      model: cartModel,
+      condition: { userId: user._id },
+      data: {
+        products: [],
+        finalPrice: 0,
+        discount: 0,
+        totalPrice: 0,
+        priceAfterCoupon: 0,
+        couponId: null
+      }
+    })
+    await deleteMany({ model: productCartModel, condition: { cartId: cart._id } })
+  }
+
+  if (order.couponId) {
+    await findByIdAndUpdate({
+      model: couponModel,
+      condition: order.couponId,
+      data: { $push: { usedBy: user._id } },
+    });
+  }
   return res.status(200).json({ message: "Done" });
 });

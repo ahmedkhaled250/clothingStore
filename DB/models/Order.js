@@ -98,7 +98,11 @@ const orderSchema = new Schema(
     isPaid: {
       type: Boolean, default: false
     },
-    date: Date
+    date: Date,
+    isCart: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
